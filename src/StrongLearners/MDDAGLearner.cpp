@@ -33,9 +33,10 @@
 
 #include "MDDAGLearner.h"
 #include "AdaBoostMHClassifier.h"
-#include "ExampleResults.h"
-#include "BaseLearner.h"
-#include "HaarSingleStumpLearner.h"
+#include "Classifiers/ExampleResults.h"
+#include "WeakLearners/BaseLearner.h"
+#include "WeakLearners/HaarSingleStumpLearner.h"
+#include "WeakLearners/SingleStumpLearner.h"
 
 namespace MultiBoost {
 	// -----------------------------------------------------------------------------------

@@ -37,11 +37,11 @@
 #include "StrongLearners/GenericStrongLearner.h"
 #include "Utils/Args.h"
 #include "Defaults.h"
-#include "InputData.h"
-#include "BaseLearner.h"
-#include "OutputInfo.h"
-#include "Serialization.h"
-#include "ExampleResults.h"
+#include "IO/InputData.h"
+#include "WeakLearners/BaseLearner.h"
+#include "IO/OutputInfo.h"
+#include "IO/Serialization.h"
+#include "Classifiers/ExampleResults.h"
 #include "AdaBoostMHLearner.h"
 
 using namespace std;
