@@ -70,7 +70,8 @@ namespace MultiBoost {
         }
         
         this->_indirectIndices.push_back(exampleIndex);
-        this->_rawIndices[exampleIndex] = this->_numExamples;
+		this->_rawIndices.push_back(this->_numExamples);
+        //this->_rawIndices[exampleIndex] = this->_numExamples;
         
         this->_numExamples++;
         

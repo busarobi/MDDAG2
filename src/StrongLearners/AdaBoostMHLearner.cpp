@@ -781,7 +781,7 @@ namespace MultiBoost {
 		///////////////////////////////////////////////////////////////////////
 		for (int t = 0; t < numIterations; ++t)
 		{
-			if (_verbose > 0)
+			if ((_verbose > 0)&&((t%100)==0))
 				cout << "--------------[ Boosting iteration " << (t+1) << " ]--------------" << endl;				
 			
 			BaseLearner* pWeakHypothesis = pWeakHypothesisSource->create();

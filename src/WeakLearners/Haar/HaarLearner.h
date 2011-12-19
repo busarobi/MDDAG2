@@ -145,6 +145,7 @@ public:
    */
    virtual void subCopyState(HaarLearner *pHaarLearner);
 
+	virtual nor_utils::Rect& getSelectedConfig() { return _selectedConfig; }
 protected:
 
    /**

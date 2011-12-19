@@ -370,6 +370,13 @@ int main(int argc, const char* argv[])
 	//// ignored for the moment!
 	//args.declareArgument("arffheader", "Specify the arff header.", 1, "<arffHeaderFile>");
 	
+	// for MDDAG
+	args.declareArgument("traintestmddag", "Performs training and test at the same time using mddag.", 5, "<trainingDataFile> <testDataFile> <modelFile> <nInterations> <baseIter>");
+	args.declareArgument("policytrainingiter", "The iteration number the policy learner takes.", 1, "<iternum>");
+	args.declareArgument("rollouts", "The number of rollouts.", 1, "<num>");
+	args.declareArgument("rollouttype", "Rollout type (montecarlo or szatymaz)", 1, "<rollouttype>");
+	args.declareArgument("beta", "Trade-off parameter", 1, "<beta>");
+	
 	// for VJ cascade
 	VJCascadeLearner::declareBaseArguments(args);
     
@@ -516,6 +523,21 @@ int main(int argc, const char* argv[])
 		
 		pModel->run(args);
 	}
+	//////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////
+	else if ( args.hasArgument("traintestmddag") )
+	{
+		// -test <dataFile> <shypFile> <numIters>
+		string shypFileName = args.getValue<string>("traintestmddag", 2);
+		
+		string baseLearnerName = UnSerialization::getWeakLearnerName(shypFileName);
+		
+		BaseLearner*  pWeakHypothesisSource = BaseLearner::RegisteredLearners().getLearner(baseLearnerName);
+		pModel = pWeakHypothesisSource->createGenericStrongLearner( args );
+		
+		pModel->run(args);
+		
+	}		
 	//////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////
 	else if ( args.hasArgument("test") )

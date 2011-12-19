@@ -41,6 +41,7 @@
 #include "StrongLearners/FilterBoostLearner.h"
 #include "StrongLearners/VJCascadeLearner.h"
 #include "StrongLearners/SoftCascadeLearner.h"
+#include "StrongLearners/MDDAGLearner.h"
 
 #include "Utils/Utils.h" // for is_zero
 
@@ -127,6 +128,8 @@ namespace MultiBoost {
 			sHypothesis = new VJCascadeLearner();
         } else if ( sHypothesisName.compare( "SoftCascade") == 0) {
             sHypothesis = new SoftCascadeLearner();
+        } else if ( sHypothesisName.compare( "MDDAG") == 0) {
+            sHypothesis = new MDDAGLearner();			
         } else {
 			cout << "Unknown strong learner!!!!" << endl;
 			exit( -1 );

@@ -282,6 +282,9 @@ namespace MultiBoost {
 		 * 	* \data 12/10/2009
 		 */
 		void	clearIndexSet( void );
+		
+		//TODO: comment				
+		void clearRawData() { _pData->clearRawData(); } 		
 		//TODO: comment		
 		inline bool isFiltered() { return _numExamples != _pData->getNumExample(); }
 		//TODO: comment		

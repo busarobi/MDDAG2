@@ -290,7 +290,7 @@ namespace MultiBoost {
 		 * \a classIdx, a negative if it does not. A real value bounded between -1 and 1 is
 		 * returned for ADTree and real AdaBoost (this latter is not implemented yet!).
 		 */
-		virtual AlphaReal classify(InputData* pData, int idx, int classIdx) = 0;
+		virtual AlphaReal classify(InputData* pData, int idx, int classIdx) = 0;		
 		
 		/**
 		 * Get the value of alpha. This \b must be computed by the algorithm in run()!
