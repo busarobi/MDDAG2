@@ -42,7 +42,8 @@
 #include "IO/OutputInfo.h"
 #include "IO/Serialization.h"
 #include "Classifiers/ExampleResults.h"
-#include "AdaBoostMHLearner.h"
+#include "StrongLearners/AdaBoostMHLearner.h"
+#include "Classifiers/AdaBoostMHClassifier.h"
 
 using namespace std;
 

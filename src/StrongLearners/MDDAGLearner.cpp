@@ -32,7 +32,6 @@
 
 
 #include "MDDAGLearner.h"
-#include "AdaBoostMHClassifier.h"
 #include "Classifiers/ExampleResults.h"
 #include "WeakLearners/BaseLearner.h"
 #include "WeakLearners/HaarSingleStumpLearner.h"
