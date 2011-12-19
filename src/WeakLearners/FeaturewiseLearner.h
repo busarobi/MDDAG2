@@ -165,6 +165,8 @@ namespace MultiBoost {
 		 */
 		virtual void subCopyState(BaseLearner *pBaseLearner);
 		
+		
+		virtual int getSelectedColumn() { return _selectedColumn; }
 	protected:
 		
 		/**

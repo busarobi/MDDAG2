@@ -75,7 +75,7 @@ namespace MultiBoost {
         MDDAGLearner()
         : _numIterations(0), _verbose(1), _withConstantLearner(true), _rollouts(10),
         _resumeShypFileName(""), _outputInfoFile(""), _trainingIter(1000), _inshypFileName(""),
-		_rolloutType( RL_MONTECARLO ), _actionNumber(3), _rewardtype(RW_ZEROONE), _beta(0.1), _policy(NULL) {}
+		_rolloutType( RL_MONTECARLO ), _actionNumber(3), _rewardtype(RW_ZEROONE), _beta(0.1), _policy(NULL), _outDir("") {}
 		
         /**
          * Start the learning process.
@@ -253,6 +253,7 @@ namespace MultiBoost {
 		AlphaReal _beta;
 		
 		AdaBoostPolicy* _policy;
+		string _outDir;
 	};		
 	// ------------------------------------------------------------------------------
 	// ------------------------------------------------------------------------------

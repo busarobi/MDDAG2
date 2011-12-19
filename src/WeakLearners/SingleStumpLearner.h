@@ -170,6 +170,7 @@ namespace MultiBoost {
 		 */
 		virtual AlphaReal phi(InputData* pData, int pointIdx) const;
 		
+		virtual AlphaReal getThreshold() { return _threshold; } 
 	protected:
 		
 		/**

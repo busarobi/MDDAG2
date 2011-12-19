@@ -376,6 +376,7 @@ int main(int argc, const char* argv[])
 	args.declareArgument("rollouts", "The number of rollouts.", 1, "<num>");
 	args.declareArgument("rollouttype", "Rollout type (montecarlo or szatymaz)", 1, "<rollouttype>");
 	args.declareArgument("beta", "Trade-off parameter", 1, "<beta>");
+	args.declareArgument("outdir", "Output directory.", 1, "<outdir>");
 	
 	// for VJ cascade
 	VJCascadeLearner::declareBaseArguments(args);

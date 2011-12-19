@@ -128,6 +128,8 @@ namespace MultiBoost {
 			_rolloutType = RL_MONTECARLO;
 		}
 		
+		if ( args.hasArgument( "outdir" ) )
+			args.getValue("outdir", 0, _outDir );   
 	}
 	
 	// -----------------------------------------------------------------------------------
@@ -212,7 +214,8 @@ namespace MultiBoost {
 		
 		if ( !_outputInfoFile.empty() ) 
 		{
-			_outStream.open(_outputInfoFile.c_str());
+			
+			_outStream.open((_outDir+_outputInfoFile).c_str());
 			
 			// is it really open?
 			if ( !_outStream.is_open() )
@@ -246,10 +249,10 @@ namespace MultiBoost {
 		AlphaReal usedClassifierTest = 0.0;
 		
 		char outfilename[4096];
-		
+		string tmpFileName;
 		cout << "********************************* 0. **********************************" << endl;
 		
-		string rolloutDataFile = "tmp.txt";
+		string rolloutDataFile = _outDir + "tmp.txt";
 		_policy = new AdaBoostPolicy();
 		InputData* rolloutTrainingData;
 		
@@ -264,12 +267,14 @@ namespace MultiBoost {
 		if (_verbose>0)
 			cout << "Classifying training." << endl;
 		sprintf( outfilename, "outtrain_%d.txt", 0 );
-		getErrorRate(pTrainingData, outfilename, trainClassificationError, usedClassifierTrain);
+		tmpFileName = _outDir + outfilename;
+		getErrorRate(pTrainingData, tmpFileName.c_str(), trainClassificationError, usedClassifierTrain);
 		
 		if (_verbose>0)
 			cout << "Classifying test." << endl;
 		sprintf( outfilename, "outtest_%d.txt", 0 );
-		getErrorRate(pTestData,outfilename,testClassificationError,usedClassifierTest);
+		tmpFileName = _outDir + outfilename;
+		getErrorRate(pTestData,tmpFileName.c_str(),testClassificationError,usedClassifierTest);
 		
 		_outStream << "0\t" << policyError << "\t" << trainClassificationError << "\t" << testClassificationError << "\t";
 		_outStream << usedClassifierTrain << "\t" << usedClassifierTest << endl << flush;
@@ -291,12 +296,14 @@ namespace MultiBoost {
 			if (_verbose>0)
 				cout << "Classifying training." << endl;			
 			sprintf( outfilename, "outtrain_%d.txt", t+1 );
-			getErrorRate(pTrainingData, outfilename, trainClassificationError, usedClassifierTrain);
+			tmpFileName = _outDir + outfilename;
+			getErrorRate(pTrainingData, tmpFileName.c_str(), trainClassificationError, usedClassifierTrain);
 			
 			if (_verbose>0)
 				cout << "Classifying test." << endl;			
 			sprintf( outfilename, "outtest_%d.txt", t+1 );
-			getErrorRate(pTestData,outfilename, testClassificationError, usedClassifierTest);
+			tmpFileName = _outDir + outfilename;
+			getErrorRate(pTestData, tmpFileName.c_str(), testClassificationError, usedClassifierTest);
 			
 			_outStream << "0\t" << policyError << "\t" << trainClassificationError << "\t" << testClassificationError << "\t";
 			_outStream << usedClassifierTrain << "\t" << usedClassifierTest << endl << flush;
@@ -368,7 +375,11 @@ namespace MultiBoost {
 		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
 		{
 			genHeader(rolloutStream, numClasses+5);
+		} if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
+		{
+			genHeader(rolloutStream, numClasses+3);
 		}
+		
 		
 		
 		for( int rlI = 0; rlI < _rollouts; ++rlI )
@@ -703,7 +714,20 @@ namespace MultiBoost {
 			state[classNum+2] = rect.width; 
 			state[classNum+3] =  rect.height;
 			state[classNum+4] = iter; 
+		} else if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) == 0)
+		{
+			int classNum = margins.size();
+			state.resize(classNum+3);
+			for(int l=0; l<classNum; ++l )
+				state[l] = margins[l];					
+			
+			
+			SingleStumpLearner* bLearner = dynamic_cast<SingleStumpLearner*> (_foundHypotheses[iter]);	
+			state[classNum] = bLearner->getThreshold();
+			state[classNum+1] = bLearner->getSelectedColumn();
+			state[classNum+2] = iter; 
 		}
+		
 		
 	}
 	// -------------------------------------------------------------------------
