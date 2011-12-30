@@ -61,6 +61,12 @@ namespace MultiBoost {
 		RW_EXPLOSS
 	};
 	
+	struct PolicyResult {
+		AlphaReal numOfEvaluatedClassifier;
+		AlphaReal errorRate;
+		AlphaReal avgReward;
+	};
+	
 	class AdaBoostPolicy;
 	
 	class MDDAGLearner : public GenericStrongLearner
@@ -183,10 +189,13 @@ namespace MultiBoost {
 		AlphaReal getReward( vector<AlphaReal>& margins, InputData* pData, int index );
 		
 		
-		AlphaReal getErrorRate(InputData* pData, const char* fname, AlphaReal& error, AlphaReal& usedClassifierOnAvg );
+		AlphaReal getErrorRate(InputData* pData, const char* fname, PolicyResult& policyResult );
 		
 		virtual void getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins );
     protected:
+		void normalizeWeights( vector<AlphaReal>& weights );
+		
+		
         AlphaReal genHeader( ofstream& out, int fnum );
         /**
          * Get the needed parameters (for the strong learner) from the argumens.

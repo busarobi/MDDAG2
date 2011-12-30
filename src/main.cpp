@@ -371,7 +371,7 @@ int main(int argc, const char* argv[])
 	//args.declareArgument("arffheader", "Specify the arff header.", 1, "<arffHeaderFile>");
 	
 	// for MDDAG
-	args.declareArgument("traintestmddag", "Performs training and test at the same time using mddag.", 5, "<trainingDataFile> <testDataFile> <modelFile> <nInterations> <baseIter>");
+	args.declareArgument("traintestmddag", "Performs training and test at the same time using mddag.", 5, "<trainingDataFile> <testDataFile> <modelFile> <nIterations> <baseIter>");
 	args.declareArgument("policytrainingiter", "The iteration number the policy learner takes.", 1, "<iternum>");
 	args.declareArgument("rollouts", "The number of rollouts.", 1, "<num>");
 	args.declareArgument("rollouttype", "Rollout type (montecarlo or szatymaz)", 1, "<rollouttype>");

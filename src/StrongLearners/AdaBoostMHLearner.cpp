@@ -847,7 +847,7 @@ namespace MultiBoost {
 		/////////////////////////////////////////////////////////
 		
 		if (_verbose > 0)
-			cout << "AdaBoost Learning completed." << endl;
+			cout << "--------------[ AdaBoost Learning completed. ]--------------" << endl;
 	}
 	// -------------------------------------------------------------------------
 } // end of namespace MultiBoost
