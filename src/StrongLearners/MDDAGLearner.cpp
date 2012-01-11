@@ -256,7 +256,7 @@ namespace MultiBoost {
 		string tmpFileName;
 		cout << "********************************* 0. **********************************" << endl;
 		
-		sprintf( tmpFileNameChar, "tmp_%d.txt", 0 );
+		sprintf( tmpFileNameChar, "rollout_%d.txt", 0 );
 		rolloutDataFile = _outDir + tmpFileNameChar;
 		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args);
 		InputData* rolloutTrainingData;
@@ -307,7 +307,7 @@ namespace MultiBoost {
 			
 			if (_verbose>0)
 				cout << "Rollout..." << endl;
-			sprintf( tmpFileNameChar, "tmp_%d.txt", t+1 );
+			sprintf( tmpFileNameChar, "rollout_%d.txt", t+1 );
 			rolloutDataFile = _outDir + tmpFileNameChar;
 
 			rollout( pTrainingData, rolloutDataFile, _policy );

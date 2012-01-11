@@ -117,7 +117,8 @@ namespace MultiBoost {
 			
 			if ( nor_utils::is_zero( policyAlpha ) )
 			{				
-				policy = new AdaBoostPolicy(args);
+				//policy = new AdaBoostPolicy(args);
+				policy = new AdaBoostPolicyArray(args, policyAlpha);
 			}
 			else
 			{
