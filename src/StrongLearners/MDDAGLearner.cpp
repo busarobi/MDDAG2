@@ -251,11 +251,14 @@ namespace MultiBoost {
 		
 		
 		char outfilename[4096];
+		string rolloutDataFile;
+		char tmpFileNameChar[4096];
 		string tmpFileName;
 		cout << "********************************* 0. **********************************" << endl;
 		
-		string rolloutDataFile = _outDir + "tmp.txt";
-		_policy = new AdaBoostPolicy();
+		sprintf( tmpFileNameChar, "tmp_%d.txt", 0 );
+		rolloutDataFile = _outDir + tmpFileNameChar;
+		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args);
 		InputData* rolloutTrainingData;
 		
 		if (_verbose>0)
@@ -263,8 +266,13 @@ namespace MultiBoost {
 		rollout( pTrainingData, rolloutDataFile );
 		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
 		
-		policyError = _policy->trainpolicy( args, rolloutTrainingData, _baseLearnerName, _trainingIter );
-		delete rolloutTrainingData;
+		//train policy 
+		policyError = _policy->trainpolicy( rolloutTrainingData, _baseLearnerName, _trainingIter );		
+		
+		// save policy 
+		sprintf( tmpFileNameChar, "shyp_%d.xml", 0 );
+		tmpFileName = _outDir + tmpFileNameChar;		
+		_policy->save(tmpFileName);
 		
 		if (_verbose>0)
 			cout << "Classifying training." << endl;
@@ -288,19 +296,30 @@ namespace MultiBoost {
 		cout << "Num of evaluated BL (train/test):\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTest.numOfEvaluatedClassifier << endl << flush;
 		cout << "result filename: " << outfilename << endl;
 		
+		delete rolloutTrainingData;
+		
 		for (int t = 0; t < _numIterations; ++t)
 		{
 			cout << "********************************* " << (t+1) << ". **********************************" << endl;
-			_trainingIter += ((t+1)*10);
+			_trainingIter += 10;
 			cout << "Policy iteration: " << _trainingIter << endl;
 			
 			
 			if (_verbose>0)
-				cout << "Rollout..." << endl;			
+				cout << "Rollout..." << endl;
+			sprintf( tmpFileNameChar, "tmp_%d.txt", t+1 );
+			rolloutDataFile = _outDir + tmpFileNameChar;
+
 			rollout( pTrainingData, rolloutDataFile, _policy );
 			rolloutTrainingData = getRolloutData( args, rolloutDataFile );						
-			policyError = _policy->trainpolicy( args, rolloutTrainingData, _baseLearnerName, _trainingIter );
-			delete rolloutTrainingData;
+			
+			// train policy
+			policyError = _policy->trainpolicy( rolloutTrainingData, _baseLearnerName, _trainingIter );			
+			
+			// save policy 
+			sprintf( tmpFileNameChar, "shyp_%d.xml", t+1 );
+			tmpFileName = _outDir + tmpFileNameChar;		
+			_policy->save(tmpFileName);			
 			
 			if (_verbose>0)
 				cout << "Classifying training." << endl;			
@@ -325,6 +344,8 @@ namespace MultiBoost {
 			cout << "Error (train/test):\t" << policyResultTrain.errorRate << "\t" << policyResultTest.errorRate << endl;
 			cout << "Num of evaluated BL (train/test):\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTest.numOfEvaluatedClassifier << endl << flush;
 			cout << "result filename: " << outfilename << endl;
+			
+			delete rolloutTrainingData;
 		}  // loop on iterations
 		/////////////////////////////////////////////////////////
 		
@@ -344,7 +365,7 @@ namespace MultiBoost {
 	}	
 	
 	// -------------------------------------------------------------------------
-	void MDDAGLearner::rollout( InputData* pData, const string fname, AdaBoostPolicy* policy )
+	void MDDAGLearner::rollout( InputData* pData, const string fname, GenericClassificationBasedPolicy* policy )
 	{
 		const int numExamples = pData->getNumExamples();
 		const int numClasses = pData->getNumClasses();
@@ -484,7 +505,7 @@ namespace MultiBoost {
 				case RL_SZATYMAZ:
 					randIndex = rand() % numExamples;								
 					randWeakLearnerIndex = rand() % _shypIter;								
-										
+					
 					
 					fill(margins[0].begin(), margins[0].end(), 0.0 );
 					path.resize(0);
@@ -497,12 +518,16 @@ namespace MultiBoost {
 							action = rand() % 2;
 						else {
 							float r = (float)rand() / RAND_MAX;
-							if (r<0.3)
+							if (r<0.0)
 							{
 								action = rand() % 2;
 							} else {															
-								vector<AlphaReal> distribution(3);
-								getStateVector( state, t, margins[t] );							
+								vector<AlphaReal> distribution(_actionNumber);
+								getStateVector( state, t, margins[t] );
+								//vector<FeatureReal>& values = data->getValues(0);
+								//for (int tmpv=0; tmpv < values.size(); ++tmpv) cout << values[tmpv] << " ";
+								//cout << endl;
+								
 								policy->getDistribution(data, distribution);
 								(distribution[0]>distribution[1]) ? action=0 : action=1;
 							}
@@ -589,20 +614,20 @@ namespace MultiBoost {
 					}
 					
 					getStateVector( state, randWeakLearnerIndex, margins[randWeakLearnerIndex+1] );
-						
+					
 					for( int j=0; j<state.size(); ++j )
 					{
 						rolloutStream << state[j] << ",";
 					}
-						
-					//normalizeWeights( estimatedRewardsForActions );
+					
+					normalizeWeights( estimatedRewardsForActions );
 					
 					rolloutStream << "{ ";
 					for( int a=0; a<_actionNumber; ++a)
 					{							
 						rolloutStream << a << " " << estimatedRewardsForActions[a] << " "; 
 					}
-						
+					
 					rolloutStream << "}" << " # " << rlI << " " << randIndex << " " << randWeakLearnerIndex ;
 					rolloutStream << endl;																
 					break;				
@@ -617,25 +642,51 @@ namespace MultiBoost {
 	// -------------------------------------------------------------------------
 	void MDDAGLearner::normalizeWeights( vector<AlphaReal>& weights )
 	{
-		int indMax;
-		AlphaReal maxVal = -numeric_limits<AlphaReal>::max();
+		//		int indMax;
+		//		AlphaReal maxVal = -numeric_limits<AlphaReal>::max();
+		//		
+		//		for (int i=0; i<weights.size(); ++i )
+		//		{
+		//			if (weights[i]>maxVal)
+		//			{
+		//				indMax=i;
+		//				maxVal=weights[i];
+		//			}
+		//		}
+		//		
+		//		for (int i=0; i<weights.size(); ++i )
+		//		{
+		//			if (indMax!=i)
+		//			{
+		//				weights[i] = weights[i] - maxVal;
+		//			}
+		//		}		
+		int allPos = 1;
+		int allNeg = 1;
+		AlphaReal sumWeight = 0.0;
 		
 		for (int i=0; i<weights.size(); ++i )
 		{
-			if (weights[i]>maxVal)
+			if (weights[i]<0.0)
 			{
-				indMax=i;
-				maxVal=weights[i];
+				allPos=0;
 			}
+			if (weights[i]>0.0)
+			{
+				allNeg=0;
+			}
+			
+			sumWeight += weights[i];
+		}				
+		
+		if ( allPos || allNeg )
+		{
+			AlphaReal avgWeight = sumWeight / static_cast<AlphaReal>(weights.size());
+			for (int i=0; i<weights.size(); ++i )
+			{
+				weights[i] = weights[i] - avgWeight;
+			}								
 		}
-		
-		for (int i=0; i<weights.size(); ++i )
-		{
-			if (indMax!=i)
-			{
-				weights[i] = weights[i] - maxVal;
-			}
-		}		
 	}
 	
 	// -------------------------------------------------------------------------
@@ -721,7 +772,7 @@ namespace MultiBoost {
 			out << clRes << "  ";
 			for( int l=0; l<classNum; ++l)
 				out << results[l] << " ";
-				
+			
 			for( int t=0; t<usedClassifier.size(); ++t)
 				out << usedClassifier[t] << " ";
 			out << endl << flush;

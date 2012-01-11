@@ -44,6 +44,8 @@
 #include "Classifiers/ExampleResults.h"
 #include "StrongLearners/AdaBoostMHLearner.h"
 #include "Classifiers/AdaBoostMHClassifier.h"
+#include "Utils/MDPutils.h"
+
 
 using namespace std;
 
@@ -67,7 +69,7 @@ namespace MultiBoost {
 		AlphaReal avgReward;
 	};
 	
-	class AdaBoostPolicy;
+
 	
 	class MDDAGLearner : public GenericStrongLearner
     {
@@ -82,7 +84,7 @@ namespace MultiBoost {
         MDDAGLearner()
         : _numIterations(0), _verbose(1), _withConstantLearner(true), _rollouts(10),
         _resumeShypFileName(""), _outputInfoFile(""), _trainingIter(1000), _inshypFileName(""),
-		_rolloutType( RL_MONTECARLO ), _actionNumber(3), _rewardtype(RW_ZEROONE), _beta(0.1), _policy(NULL), _outDir("") {}
+		_rolloutType( RL_MONTECARLO ), _actionNumber(2), _rewardtype(RW_ZEROONE), _beta(0.1), _policy(NULL), _outDir("") {}
 		
         /**
          * Start the learning process.
@@ -184,7 +186,7 @@ namespace MultiBoost {
 									vector< ExampleResults* >& results );
         
 		virtual void getClassError( InputData* pData, const vector<ExampleResults*>& results, AlphaReal& classError);		
-		void rollout( InputData* pData, const string fname, AdaBoostPolicy* policy = NULL );
+		void rollout( InputData* pData, const string fname, GenericClassificationBasedPolicy* policy = NULL );
 		
 		AlphaReal getReward( vector<AlphaReal>& margins, InputData* pData, int index );
 		
@@ -262,106 +264,11 @@ namespace MultiBoost {
 		eRewardType _rewardtype;
 		AlphaReal _beta;
 		
-		AdaBoostPolicy* _policy;
+		GenericClassificationBasedPolicy* _policy;
 		string _outDir;
 	};		
 	// ------------------------------------------------------------------------------
 	// ------------------------------------------------------------------------------
-	class AdaBoostPolicy
-	{		
-	public:
-		//------------------------------------------------------------------------------------------
-		AlphaReal trainpolicy( const nor_utils::Args& args, InputData* pTrainingData, const string baseLearnerName, const int numIterations )
-		{
-			AdaBoostMHLearner* sHypothesis = new AdaBoostMHLearner();
-			sHypothesis->run(args, pTrainingData, baseLearnerName, numIterations, _weakhyp );
-			delete sHypothesis;		
-			_classNum = pTrainingData->getNumClasses();
-			
-			const int numExamples = pTrainingData->getNumExamples();
-			
-			vector<AlphaReal> results(_classNum);
-			int numErrors = 0;
-			for(int i=0; i<numExamples; ++i )				
-			{
-				fill(results.begin(),results.end(),0.0);
-				for(int t=0; t<_weakhyp.size(); ++t)
-				{
-					for( int l=0; l<_classNum; ++l )
-					{
-						results[l] += _weakhyp[t]->getAlpha() * _weakhyp[t]->classify(pTrainingData,i,l);
-					}
-				}
-				AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
-				int forecastlabel = -1;
-				
-				for(int l=0; l<_classNum; ++l )
-				{
-					if (results[l]>maxMargin)
-					{
-						maxMargin=results[l];
-						forecastlabel=l;
-					}										
-				}						
-				
-				vector<Label> labels = pTrainingData->getLabels(i);
-				
-				if (pTrainingData->hasLabel(i,forecastlabel) )	
-				{
-					if(labels[forecastlabel].y<0) numErrors++;
-				} else numErrors++;
-			}
-			
-			AlphaReal error = (AlphaReal)numErrors/(AlphaReal) numExamples;
-			return error;			
-		}
-		//------------------------------------------------------------------------------------------
-		virtual int getNextAction( InputData* state )
-		{
-			vector<AlphaReal> forecast(_classNum);
-			fill( forecast.begin(), forecast.end(), 0.0 );
-			
-			for( int t = 0; t < _weakhyp.size(); ++t )
-			{
-				for( int l = 0; l<_classNum; ++l )
-				{
-					forecast[l] += _weakhyp[t]->getAlpha() * _weakhyp[t]->classify(state,0,l);
-				}
-			}
-
-			AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
-			int forecastlabel = -1;
-			
-			for(int l=0; l<_classNum; ++l )
-			{
-				if (forecast[l]>maxMargin)
-				{
-					maxMargin=forecast[l];
-					forecastlabel=l;
-				}										
-			}						
-			
-			return forecastlabel;
-		}
-		//------------------------------------------------------------------------------------------
-		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution )
-		{
-			distribution.resize(_classNum);
-			fill( distribution.begin(), distribution.end(), 0.0 );
-			
-			for( int t = 0; t < _weakhyp.size(); ++t )
-			{
-				for( int l = 0; l<_classNum; ++l )
-				{
-					distribution[l] += _weakhyp[t]->getAlpha() * _weakhyp[t]->classify(state,0,l);
-				}
-			}
-		}
-		//------------------------------------------------------------------------------------------
-	protected:
-		vector<BaseLearner*> _weakhyp;
-		int _classNum;
-	};
 	
 } // end of namespace MultiBoost
 
