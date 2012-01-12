@@ -958,7 +958,8 @@ namespace MultiBoost {
 	InputData* MDDAGLearner::getRolloutData(const nor_utils::Args& args, const string fname )
 	{		
 		BaseLearner*  pWeakHypothesisSource = BaseLearner::RegisteredLearners().getLearner(_baseLearnerName);
-		
+		pWeakHypothesisSource->initLearningOptions(args);
+				
 		InputData* data = pWeakHypothesisSource->createInputData();
 		data->initOptions(args);
 		data->load(fname, IT_TRAIN, _verbose);
