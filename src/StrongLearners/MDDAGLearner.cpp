@@ -616,7 +616,7 @@ namespace MultiBoost {
 						}
 						
 						finalReward = getReward(margins[path.size()], pData, randIndex );
-						estimatedRewardsForActions[a] = finalReward - usedClassifier * _beta;
+						estimatedRewardsForActions[a] = -(finalReward - usedClassifier * _beta);
 					}
 					
 					getStateVector( state, randWeakLearnerIndex, margins[randWeakLearnerIndex+1] );
