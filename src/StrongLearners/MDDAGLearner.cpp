@@ -529,7 +529,11 @@ namespace MultiBoost {
 								//cout << endl;
 								
 								policy->getDistribution(data, distribution);
-								(distribution[0]>distribution[1]) ? action=0 : action=1;
+								
+								if ( nor_utils::is_zero( distribution[0]-distribution[1]))
+									action = rand() % 2;
+								else 
+									(distribution[0]>distribution[1]) ? action=0 : action=1;
 							}
 						}
 						
