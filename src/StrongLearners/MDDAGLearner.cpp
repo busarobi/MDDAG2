@@ -616,7 +616,7 @@ namespace MultiBoost {
 						}
 						
 						finalReward = getReward(margins[path.size()], pData, randIndex );
-						estimatedRewardsForActions[a] = -(finalReward - usedClassifier * _beta);
+						estimatedRewardsForActions[a] = finalReward + usedClassifier * _beta;
 					}
 					
 					getStateVector( state, randWeakLearnerIndex, margins[randWeakLearnerIndex+1] );
@@ -885,7 +885,7 @@ namespace MultiBoost {
 					}
 				}
 				
-				if (allZero==1) return -1.0;
+				if (allZero==1) return 0.0;//return -1.0;
 				
 				for(l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
 				{
@@ -899,7 +899,8 @@ namespace MultiBoost {
 				{
 					reward=1.0;
 				} else {
-					reward=-1.0;
+					//reward=-1.0;
+					reward=0.0;
 				}
 				
 				break;
