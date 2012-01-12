@@ -197,6 +197,10 @@ namespace MultiBoost {
 		inline const Example& getExample(int idx)
 		{ return _pData->getExample( _indirectIndices[idx] ); }
 		
+		inline Example& getExampleReference(int idx)
+		{ return _pData->getExampleReference( _indirectIndices[idx] ); }
+
+		
 		virtual inline const vector<Example>& getExamples() { 
 			if ( ! this->isFiltered() ) {
 				return _pData->getExamples(); 

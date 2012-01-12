@@ -175,6 +175,12 @@ namespace MultiBoost {
 		us.loadHypotheses(_inshypFileName, _foundHypotheses, pTrainingData);
 		_foundHypotheses.resize(_shypIter);
 		
+		// calculate sum of alphas for normalization
+		_sumAlphas.resize(_shypIter+1);
+		_sumAlphas[0]=0.0;
+		for (int i=0; i<_shypIter; ++i )
+			_sumAlphas[i+1] = _sumAlphas[i] + _foundHypotheses[i]->getAlpha();
+		
 		// where the results go
 		vector< ExampleResults* > results;
 		
@@ -232,13 +238,7 @@ namespace MultiBoost {
 		//cout << "Before serialization" << endl;
 		// reload the previously found weak learners if -resume is set. 
 		// otherwise just return 0
-		
-		
-		
-		Serialization ss(_shypFileName );
-		ss.writeHeader(_baseLearnerName); // this must go after resumeProcess has been called
-		
-		
+						
 		if (_verbose == 1)
 			cout << "Learning in progress..." << endl;
 		
@@ -386,9 +386,11 @@ namespace MultiBoost {
 		vector<AlphaReal> estimatedRewardsForActions(_actionNumber);
 		
 		InputData* data = new InputData();
-		Example stateExample;
+		Example stateExample("state");
 		data->addExample(stateExample);
-		vector<FeatureReal>& state= const_cast< vector<FeatureReal>& >((data->getExample(0)).getValues());
+		
+		Example& e = data->getExampleReference(0);
+		vector<FeatureReal>& state = e.getValues();
 		
 		
 		ofstream rolloutStream;
@@ -525,7 +527,7 @@ namespace MultiBoost {
 								vector<AlphaReal> distribution(_actionNumber);
 								getStateVector( state, t, margins[t] );
 								//vector<FeatureReal>& values = data->getValues(0);
-								//for (int tmpv=0; tmpv < values.size(); ++tmpv) cout << values[tmpv] << " ";
+								//for (int tmpv=0; tmpv < 15; ++tmpv) cout << data->getValue(0,tmpv) << " ";
 								//cout << endl;
 								
 								policy->getDistribution(data, distribution);
@@ -618,22 +620,26 @@ namespace MultiBoost {
 					}
 					
 					getStateVector( state, randWeakLearnerIndex, margins[randWeakLearnerIndex+1] );
+										
 					
-					for( int j=0; j<state.size(); ++j )
+					if (normalizeWeights( estimatedRewardsForActions )) 
 					{
-						rolloutStream << state[j] << ",";
+						
+						for( int j=0; j<state.size(); ++j )
+						{
+							rolloutStream << state[j] << ",";
+						}
+						
+					
+						rolloutStream << "{ ";
+						for( int a=0; a<_actionNumber; ++a)
+						{							
+							rolloutStream << a << " " << estimatedRewardsForActions[a] << " "; 
+						}
+					
+						rolloutStream << "}" << " # " << rlI << " " << randIndex << " " << randWeakLearnerIndex ;
+						rolloutStream << endl;
 					}
-					
-					normalizeWeights( estimatedRewardsForActions );
-					
-					rolloutStream << "{ ";
-					for( int a=0; a<_actionNumber; ++a)
-					{							
-						rolloutStream << a << " " << estimatedRewardsForActions[a] << " "; 
-					}
-					
-					rolloutStream << "}" << " # " << rlI << " " << randIndex << " " << randWeakLearnerIndex ;
-					rolloutStream << endl;																
 					break;				
 				default:
 					break;
@@ -644,7 +650,7 @@ namespace MultiBoost {
 	}
 	// -------------------------------------------------------------------------
 	// -------------------------------------------------------------------------
-	void MDDAGLearner::normalizeWeights( vector<AlphaReal>& weights )
+	int MDDAGLearner::normalizeWeights( vector<AlphaReal>& weights )
 	{
 		//		int indMax;
 		//		AlphaReal maxVal = -numeric_limits<AlphaReal>::max();
@@ -683,14 +689,20 @@ namespace MultiBoost {
 			sumWeight += weights[i];
 		}				
 		
+		int notAllZero = 1;
+		
 		if ( allPos || allNeg )
 		{
 			AlphaReal avgWeight = sumWeight / static_cast<AlphaReal>(weights.size());
 			for (int i=0; i<weights.size(); ++i )
 			{
 				weights[i] = weights[i] - avgWeight;
+				if (nor_utils::is_zero(weights[i]))
+					notAllZero = 0;
 			}								
 		}
+		
+		return notAllZero;
 	}
 	
 	// -------------------------------------------------------------------------
@@ -701,11 +713,14 @@ namespace MultiBoost {
 		const int classNum = pData->getNumClasses();
 		
 		vector<AlphaReal> results(classNum);
-		Example stateExample;
+		
 		InputData* stateData = new InputData();
+		Example stateExample("state");
 		stateData->addExample(stateExample);
 		
-		vector<FeatureReal>& state= const_cast<vector<FeatureReal>& >(stateData->getExample(0).getValues());
+		Example& e = stateData->getExampleReference(0);
+		vector<FeatureReal>& state = e.getValues();
+
 		state.resize(classNum);
 		AlphaReal sumReward = 0.0;
 		

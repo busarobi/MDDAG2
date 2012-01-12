@@ -19,6 +19,8 @@ namespace MultiBoost {
 		
 		AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
 		int forecastlabel = -1;
+		AlphaReal tmpVal = forecast[0];
+		int allEqual = 1;
 		
 		for(int l=0; l<_actionNum; ++l )
 		{
@@ -27,16 +29,28 @@ namespace MultiBoost {
 				maxMargin=forecast[l];
 				forecastlabel=l;
 			}
-			// if equal
-			if ( nor_utils::is_zero(forecast[l]-maxMargin))
-			{				
-				if ( rand() % 2 )
-				{
-					maxMargin=forecast[l];
-					forecastlabel=l;					
-				}
-			}
-		}						
+			
+			if ( ! nor_utils::is_zero(forecast[l]-tmpVal) )
+			{
+				allEqual=0;
+			}			
+		}	
+		
+//		vector<FeatureReal>& values = state->getValues(0);
+//		for (int tmpv=0; tmpv < values.size(); ++tmpv) cout << state->getValue(1,tmpv ) << " ";
+//		cout << endl;
+//		for (int tmpv=0; tmpv < forecast.size(); ++tmpv) cout << forecast[tmpv] << " ";
+//		cout << endl;
+		
+		
+		// if equal
+		if (allEqual)
+		{				
+			forecastlabel=rand() % _actionNum;					
+		} else {
+			//cout << forecastlabel << endl;
+		}
+
 		
 		return forecastlabel;
 	}
@@ -142,7 +156,7 @@ namespace MultiBoost {
 			_policies[i]->getDistribution( state, tmpDistribution );
 			for( int l=0; l < _actionNum; ++l )
 			{
-				distribution[l] += (_coefficients[i]*tmpDistribution[i]);
+				distribution[l] += (_coefficients[i]*tmpDistribution[l]);
 			}
 		}
 	}	

@@ -195,7 +195,7 @@ namespace MultiBoost {
 		
 		virtual void getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins );
     protected:
-		void normalizeWeights( vector<AlphaReal>& weights );
+		int normalizeWeights( vector<AlphaReal>& weights );
 		
 		
         AlphaReal genHeader( ofstream& out, int fnum );
@@ -226,7 +226,8 @@ namespace MultiBoost {
                            OutputInfo* pOutInfo);
         
         vector<BaseLearner*>  _foundHypotheses; //!< The list of the hypotheses found.
-        
+        vector<AlphaReal>	  _sumAlphas;
+		
         string  _baseLearnerName; //!< The name of the basic learner used by AdaBoost. 
 		string _inBaseLearnerName;
         string  _shypFileName; //!< File name of the strong hypothesis.

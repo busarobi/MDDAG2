@@ -95,7 +95,7 @@ namespace MultiBoost {
 		 * \date 12/11/2005
 		 */
 		RawData() : _hasExampleName(false), _classInLastColumn(false), _sepChars(" \t\n"),
-		_numAttributes(0), _numExamples(0), _fileFormat(FF_SIMPLE), _headerFile("") {  }
+		_numAttributes(0), _numExamples(0), _fileFormat(FF_SIMPLE), _headerFile(""), _dataRep(DR_DENSE) {  }
 		
 		
 		/**
@@ -191,6 +191,9 @@ namespace MultiBoost {
         
 		
 		inline const Example& getExample(int idx)
+		{ return _data[idx]; }
+
+		inline Example& getExampleReference(int idx)
 		{ return _data[idx]; }
 		
 		inline const vector<Example>& getExamples() 
