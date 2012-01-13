@@ -138,7 +138,7 @@ namespace MultiBoost {
 	{
 		// load the arguments
 		this->getArgs(args);
-		
+				
 		// get the registered weak learner (type from name)
 		_inBaseLearnerName = UnSerialization::getWeakLearnerName(_inshypFileName);		
 		BaseLearner*  pWeakHypothesisSource = BaseLearner::RegisteredLearners().getLearner(_inBaseLearnerName);
@@ -580,7 +580,7 @@ namespace MultiBoost {
 									action = rand() % _actionNumber;
 								else {			
 									float r = (float)rand() / RAND_MAX;
-									if (r<0.3)
+									if (r<0.0)
 									{
 										action = rand() % _actionNumber;
 									} else {
@@ -616,7 +616,7 @@ namespace MultiBoost {
 						}
 						
 						finalReward = getReward(margins[path.size()], pData, randIndex );
-						estimatedRewardsForActions[a] = finalReward + usedClassifier * _beta;
+						estimatedRewardsForActions[a] = finalReward - usedClassifier * _beta;
 					}
 					
 					getStateVector( state, randWeakLearnerIndex, margins[randWeakLearnerIndex+1] );
@@ -691,8 +691,8 @@ namespace MultiBoost {
 		
 		int notAllZero = 1;
 		
-		if ( allPos || allNeg )
-		{
+		//if ( allPos || allNeg )
+		//{
 			AlphaReal avgWeight = sumWeight / static_cast<AlphaReal>(weights.size());
 			for (int i=0; i<weights.size(); ++i )
 			{
@@ -700,7 +700,7 @@ namespace MultiBoost {
 				if (nor_utils::is_zero(weights[i]))
 					notAllZero = 0;
 			}								
-		}
+		//}
 		
 		return notAllZero;
 	}
@@ -963,8 +963,10 @@ namespace MultiBoost {
 				
 		InputData* data = pWeakHypothesisSource->createInputData();
 		data->initOptions(args);
-		data->load(fname, IT_TRAIN, _verbose);
+		data->setInitWeighting( WIT_PROP_ONLY );
 		
+		data->load(fname, IT_TRAIN, _verbose);
+
 		return data;
 	}
 	

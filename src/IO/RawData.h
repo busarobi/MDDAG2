@@ -79,6 +79,13 @@ namespace MultiBoost {
 		IT_TEST //!< If the input is test-type. 
 	};
 	
+	enum eWeightInitType
+	{
+		WIT_SHARE_POINT, // eq1
+		WIT_SHARE_LABEL, // eq2 
+		WIT_PROP_ONLY,    // eq3
+		WIT_BALANCED
+	};
 	
 	
 	class RawData {
@@ -233,18 +240,12 @@ namespace MultiBoost {
 			ATTRIBUTE_ENUM, // eq2 
 		};
 		
-		enum eWeightInitType
-		{
-			WIT_SHARE_POINT, // eq1
-			WIT_SHARE_LABEL, // eq2 
-			WIT_PROP_ONLY,    // eq3
-			WIT_BALANCED
-		};
 		
 		const string getSepChars() { return _sepChars; }
 		const eDataRep getDataRep() { return _dataRep; }
 		vector<Example>::iterator rawBegin() {return _data.begin(); }
 		vector<Example>::iterator rawEnd() {return _data.end();}
+		void setInitWeighting( eWeightInitType weightInitType ) { _weightInitType = weightInitType; }
 		
 		vector< int >&	getExamplesPerClass() { return _nExamplesPerClass; }
 		

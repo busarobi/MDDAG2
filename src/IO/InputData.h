@@ -319,6 +319,7 @@ namespace MultiBoost {
 		//TODO: comment        
 		void addExample( Example example );
 		
+		void setInitWeighting( eWeightInitType weightInitType ) {_pData->setInitWeighting( weightInitType); }
 		
 		virtual ~InputData()
 		{
