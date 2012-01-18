@@ -258,7 +258,7 @@ namespace MultiBoost {
 		
 		sprintf( tmpFileNameChar, "rollout_%d.txt", 0 );
 		rolloutDataFile = _outDir + tmpFileNameChar;
-		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args);
+		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
 		InputData* rolloutTrainingData;
 		
 		if (_verbose>0)
@@ -301,7 +301,9 @@ namespace MultiBoost {
 		for (int t = 0; t < _numIterations; ++t)
 		{
 			cout << "********************************* " << (t+1) << ". **********************************" << endl;
-			_trainingIter += 10;
+			
+			// increase the complexity of policy/classifier
+			//_trainingIter += 10;
 			cout << "Policy iteration: " << _trainingIter << endl;
 			
 			

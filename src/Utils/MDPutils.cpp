@@ -134,11 +134,11 @@ namespace MultiBoost {
 		_actionNum = pTrainingData->getNumClasses();
 		_baseLearnerName = baseLearnerName;
 		
-		AdaBoostPolicy* abpolicy = new AdaBoostPolicy( _args );
+		AdaBoostPolicy* abpolicy = new AdaBoostPolicy( _args, _actionNum );
 		AlphaReal retval = abpolicy->trainpolicy(pTrainingData, baseLearnerName, numIterations );
 		
 		for (int i=0; i<_coefficients.size(); ++i ) _coefficients[i] *= _alpha;
-		
+				
 		_policies.push_back( abpolicy );
 		_coefficients.push_back( 1.0 );
 		
@@ -175,7 +175,7 @@ namespace MultiBoost {
 	void AdaBoostPolicyArray::save( const string fname )
 	{
 		const int ind = _policies.size()-1;
-		AdaBoostPolicy* _lastpolicy = _policies[ind];
+		AdaBoostPolicy* _lastpolicy = dynamic_cast<AdaBoostPolicy*>(_policies[ind]);
 		
 		Serialization ss(fname, false );
 		ss.writeHeader(_baseLearnerName); // this must go after resumeProcess has been called		
