@@ -532,7 +532,7 @@ namespace MultiBoost {
 								//for (int tmpv=0; tmpv < 15; ++tmpv) cout << data->getValue(0,tmpv) << " ";
 								//cout << endl;
 								
-								policy->getDistribution(data, distribution);
+								policy->getExplorationDistribution(data, distribution);
 								
 								if ( nor_utils::is_zero( distribution[0]-distribution[1]))
 									action = rand() % 2;
@@ -587,7 +587,7 @@ namespace MultiBoost {
 										action = rand() % _actionNumber;
 									} else {
 										getStateVector( state, t, margins[t] );							
-										action = policy->getNextAction( data );							
+										action = policy->getExplorationNextAction( data );							
 									}
 								}
 							}

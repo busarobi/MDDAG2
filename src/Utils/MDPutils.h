@@ -61,8 +61,14 @@ namespace MultiBoost {
 		// abstract functions 
 		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations ) = 0;		
 		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution ) = 0;
+		virtual void getExplorationDistribution(InputData* state, vector<AlphaReal>& distribution )
+		{
+			getDistribution( state, distribution );
+		}
 		
 		virtual int getNextAction( InputData* state );
+		virtual int getExplorationNextAction( InputData* state );
+		
 		virtual void save( const string fname ) = 0;
 		virtual void setActionNumber( int actionNumber ) { _actionNum = actionNumber; }
 	protected:
@@ -141,6 +147,8 @@ namespace MultiBoost {
 		
 		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations );
 		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution );
+		virtual void getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution );
+		
 		virtual void save( const string fname );
 		
 	protected:

@@ -15,7 +15,7 @@ namespace MultiBoost {
 	int GenericClassificationBasedPolicy::getNextAction( InputData* state )
 	{
 		vector<AlphaReal> forecast(_actionNum);
-		getDistribution(state, forecast);
+		getExplorationDistribution(state, forecast);
 		
 		AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
 		int forecastlabel = -1;
@@ -51,6 +51,50 @@ namespace MultiBoost {
 			//cout << forecastlabel << endl;
 		}
 
+		
+		return forecastlabel;
+	}
+	
+	// -----------------------------------------------------------------------------------	
+	int GenericClassificationBasedPolicy::getExplorationNextAction( InputData* state )
+	{
+		vector<AlphaReal> forecast(_actionNum);
+		getExplorationDistribution(state, forecast);
+		
+		AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
+		int forecastlabel = -1;
+		AlphaReal tmpVal = forecast[0];
+		int allEqual = 1;
+		
+		for(int l=0; l<_actionNum; ++l )
+		{
+			if (forecast[l]>maxMargin)
+			{
+				maxMargin=forecast[l];
+				forecastlabel=l;
+			}
+			
+			if ( ! nor_utils::is_zero(forecast[l]-tmpVal) )
+			{
+				allEqual=0;
+			}			
+		}	
+		
+		//		vector<FeatureReal>& values = state->getValues(0);
+		//		for (int tmpv=0; tmpv < values.size(); ++tmpv) cout << state->getValue(1,tmpv ) << " ";
+		//		cout << endl;
+		//		for (int tmpv=0; tmpv < forecast.size(); ++tmpv) cout << forecast[tmpv] << " ";
+		//		cout << endl;
+		
+		
+		// if equal
+		if (allEqual)
+		{				
+			forecastlabel=rand() % _actionNum;					
+		} else {
+			//cout << forecastlabel << endl;
+		}
+		
 		
 		return forecastlabel;
 	}
@@ -145,7 +189,7 @@ namespace MultiBoost {
 		return retval;
 	}	
 	//------------------------------------------------------------------------------------------
-	void AdaBoostPolicyArray::getDistribution( InputData* state, vector<AlphaReal>& distribution )
+	void AdaBoostPolicyArray::getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution )
 	{
 		vector< AlphaReal > tmpDistribution( _actionNum );		
 		fill( distribution.begin(), distribution.end(), 0.0 );
@@ -161,7 +205,13 @@ namespace MultiBoost {
 			}
 		}
 	}	
-
+	//------------------------------------------------------------------------------------------
+	void AdaBoostPolicyArray::getDistribution( InputData* state, vector<AlphaReal>& distribution )
+	{
+		const int ind = _policies.size()-1;
+		_policies[ind]->getDistribution( state, distribution );
+	}	
+	
 	//------------------------------------------------------------------------------------------	
 	void AdaBoostPolicy::save( const string fname )
 	{
