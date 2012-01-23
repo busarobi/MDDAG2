@@ -673,19 +673,19 @@ namespace MultiBoost {
 		//				weights[i] = weights[i] - maxVal;
 		//			}
 		//		}		
-		int allPos = 1;
-		int allNeg = 1;
+		AlphaReal minValue = numeric_limits<AlphaReal>::max();
+		AlphaReal maxValue = -numeric_limits<AlphaReal>::max();
 		AlphaReal sumWeight = 0.0;
 		
 		for (int i=0; i<weights.size(); ++i )
 		{
-			if (weights[i]<0.0)
+			if (weights[i]<minValue)
 			{
-				allPos=0;
+				minValue = weights[i];
 			}
-			if (weights[i]>0.0)
+			if (weights[i]>maxValue)
 			{
-				allNeg=0;
+				maxValue = weights[i];
 			}
 			
 			sumWeight += weights[i];
@@ -693,16 +693,15 @@ namespace MultiBoost {
 		
 		int notAllZero = 1;
 		
-		//if ( allPos || allNeg )
-		//{
-			AlphaReal avgWeight = sumWeight / static_cast<AlphaReal>(weights.size());
-			for (int i=0; i<weights.size(); ++i )
-			{
-				weights[i] = weights[i] - avgWeight;
-				if (nor_utils::is_zero(weights[i]))
-					notAllZero = 0;
-			}								
-		//}
+		// for two action these two weight normalization are the same
+		//AlphaReal avgWeight = sumWeight / static_cast<AlphaReal>(weights.size()); // L_{2}
+		AlphaReal avgWeight = (maxValue + minValue) / 2.0; // L_{infty}
+		for (int i=0; i<weights.size(); ++i )
+		{
+			weights[i] = weights[i] - avgWeight;
+			if (nor_utils::is_zero(weights[i]))
+				notAllZero = 0;
+		}								
 		
 		return notAllZero;
 	}
@@ -834,11 +833,15 @@ namespace MultiBoost {
 	{
 		
 		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) == 0)
-		{
+		{									
 			int classNum = margins.size();
+			
+			vector<AlphaReal> posteriors( classNum );
+			AlphaReal sumOfPosterios = getPosteriors( margins, posteriors, iter );
+			
 			state.resize(classNum+5);
 			for(int l=0; l<classNum; ++l )
-				state[l] = margins[l];					
+				state[l] = posteriors[l];					
 			
 			
 			HaarSingleStumpLearner* bLearner = dynamic_cast<HaarSingleStumpLearner*> (_foundHypotheses[iter]);	
@@ -847,7 +850,8 @@ namespace MultiBoost {
 			state[classNum+1] = rect.y;
 			state[classNum+2] = rect.width; 
 			state[classNum+3] =  rect.height;
-			state[classNum+4] = iter; 
+			//state[classNum+4] = iter; 
+			state[classNum+4] = sumOfPosterios; 
 		} else if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) == 0)
 		{
 			int classNum = margins.size();
@@ -864,6 +868,39 @@ namespace MultiBoost {
 		
 		
 	}
+	// -------------------------------------------------------------------------
+	AlphaReal MDDAGLearner::getPosteriors( vector<AlphaReal>& margins, vector<AlphaReal>& posteriors, int iter )
+	{
+		if (iter==0) 
+		{
+			fill( posteriors.begin(), posteriors.end(), 0.0 );
+			return 0.0;
+		}
+		
+		const int classNum = margins.size();
+		AlphaReal sumOfMargins = 0.0;
+		for ( int i=0; i<classNum; ++i ) 
+		{	
+			posteriors[i] = margins[i];
+			sumOfMargins += abs(margins[i]);
+		}
+		
+		if ( ! nor_utils::is_zero( sumOfMargins ) )
+		{
+			for ( int i=0; i<classNum; ++i ) 
+			{
+				posteriors[i] /= sumOfMargins;		
+//				if ( posteriors[i] != posteriors[i])
+//				{
+//					cout << "NaN" << endl;
+//				}
+			}
+			
+		}
+		
+		return sumOfMargins;
+	}
+	
 	// -------------------------------------------------------------------------
 	AlphaReal MDDAGLearner::getReward( vector<AlphaReal>& margins, InputData* pData, int index )
 	{

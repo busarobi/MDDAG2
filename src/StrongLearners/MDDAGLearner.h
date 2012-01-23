@@ -193,10 +193,10 @@ namespace MultiBoost {
 		
 		AlphaReal getErrorRate(InputData* pData, const char* fname, PolicyResult& policyResult );
 		
-		virtual void getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins );
+		inline virtual void getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins );
     protected:
-		int normalizeWeights( vector<AlphaReal>& weights );
-		
+		inline int normalizeWeights( vector<AlphaReal>& weights );
+		inline AlphaReal getPosteriors( vector<AlphaReal>& margins, vector<AlphaReal>& posteriors, int iter );
 		
         AlphaReal genHeader( ofstream& out, int fnum );
         /**

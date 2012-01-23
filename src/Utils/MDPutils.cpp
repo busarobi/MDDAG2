@@ -15,6 +15,8 @@ namespace MultiBoost {
 	int GenericClassificationBasedPolicy::getNextAction( InputData* state )
 	{
 		vector<AlphaReal> forecast(_actionNum);
+		
+		// getExplorationDistribution means that the policies are aggregated
 		getExplorationDistribution(state, forecast);
 		
 		AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
