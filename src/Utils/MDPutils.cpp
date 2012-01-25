@@ -215,7 +215,7 @@ namespace MultiBoost {
 	}	
 	
 	//------------------------------------------------------------------------------------------	
-	void AdaBoostPolicy::save( const string fname )
+	void AdaBoostPolicy::save( const string fname, InputData* pData )
 	{
 		Serialization ss(fname, false );
 		ss.writeHeader(_baseLearnerName); // this must go after resumeProcess has been called
@@ -224,16 +224,84 @@ namespace MultiBoost {
 		ss.writeFooter();
 	}
 	//------------------------------------------------------------------------------------------
-	void AdaBoostPolicyArray::save( const string fname )
+	void AdaBoostPolicyArray::save( const string fname, InputData* pData )
 	{
-		const int ind = _policies.size()-1;
-		AdaBoostPolicy* _lastpolicy = dynamic_cast<AdaBoostPolicy*>(_policies[ind]);
+//		const int ind = _policies.size()-1;
+//		AdaBoostPolicy* _lastpolicy = dynamic_cast<AdaBoostPolicy*>(_policies[ind]);
+//		
+//		Serialization ss(fname, false );
+//		ss.writeHeader(_baseLearnerName); // this must go after resumeProcess has been called		
+//		for (int t=0; t<_lastpolicy->getBaseLearnerNum(); ++t)
+//			ss.appendHypothesis(t, _lastpolicy->getithBaseLearner(t));
+//		ss.writeFooter();		
+		
+		const int policyNum = _policies.size();
 		
 		Serialization ss(fname, false );
-		ss.writeHeader(_baseLearnerName); // this must go after resumeProcess has been called		
-		for (int t=0; t<_lastpolicy->getBaseLearnerNum(); ++t)
-			ss.appendHypothesis(t, _lastpolicy->getithBaseLearner(t));
-		ss.writeFooter();		
+		ss.writeCascadeHeader(_baseLearnerName);
+		for (int i=0; i < policyNum; ++i )
+		{
+			AdaBoostPolicy* currentpolicy = dynamic_cast<AdaBoostPolicy*>(_policies[i]);
+			
+			ss.appendStageSeparatorHeader( i, currentpolicy->getBaseLearnerNum(), _coefficients[i] );						
+			//ss.appendStageSeparatorFooter();
+			// append the current weak learner to strong hypothesis file,
+			// that is, serialize it.					
+			for (int t=0 ; t < currentpolicy->getBaseLearnerNum(); ++t )
+			{
+				BaseLearner* currentBaseLearner = currentpolicy->getithBaseLearner(t);
+				currentBaseLearner->setTrainingData(pData);
+				ss.appendHypothesis(t, currentBaseLearner );						
+			}
+		}	
+		ss.writeCascadeFooter();
+	}
+
+	//------------------------------------------------------------------------------------------	
+	int AdaBoostPolicy::load( const string fname, InputData* pData )
+	{
+		if (fname.empty())
+			return 0;
+		
+		if (_verbose > 0)
+			cout << "Reloading policy file <" << fname << ">.." << flush;
+		
+		// The class that loads the weak hypotheses
+		UnSerialization us;
+		
+		// loads them
+		us.loadHypotheses(fname, _weakhyp, pData, _verbose);
+		
+		if (_verbose > 0)
+			cout << "Done!" << endl;
+		
+		// return the number of iterations found
+		return static_cast<int>( _weakhyp.size() );
+	}
+	
+	//------------------------------------------------------------------------------------------
+	int AdaBoostPolicyArray::load( const string fname, InputData* pData )
+	{
+		// The class that loads the weak hypotheses
+		UnSerialization us;
+		
+		// Where to put the weak hypotheses
+		vector<vector<BaseLearner*> > weakHypotheses(0);
+		        
+		// loads them
+		//us.loadHypotheses(shypFileName, weakHypotheses, pData);
+		us.loadCascadeHypotheses(fname, weakHypotheses, _coefficients, pData);
+		
+		for ( int i=0; i < weakHypotheses.size(); ++i)
+		{
+			AdaBoostPolicy* currentPolicy = new AdaBoostPolicy(_args, _actionNum, weakHypotheses[i] );
+			_policies.push_back(currentPolicy); 
+		}
+		
+		return weakHypotheses.size();
 	}
 	//------------------------------------------------------------------------------------------	
+	
+	
+	
 }

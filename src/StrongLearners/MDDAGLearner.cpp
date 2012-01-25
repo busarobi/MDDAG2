@@ -37,6 +37,9 @@
 #include "WeakLearners/HaarSingleStumpLearner.h"
 #include "WeakLearners/SingleStumpLearner.h"
 
+
+#include "Classifiers/MDDAGClassifier.h"
+
 namespace MultiBoost {
 	// -----------------------------------------------------------------------------------
 	
@@ -130,6 +133,28 @@ namespace MultiBoost {
 		
 		if ( args.hasArgument( "outdir" ) )
 			args.getValue("outdir", 0, _outDir );   
+
+		
+		string succesrewardtype = "";
+		if ( args.hasArgument( "succrewartdtype" ) )
+			args.getValue("succrewartdtype", 0, succesrewardtype );
+		else {	
+			cerr << "No reward type is given, set to zeroone" << endl;
+			succesrewardtype = "e01";
+		}
+
+		
+		
+		if ( succesrewardtype.compare( "exp" ) == 0 )
+			_rewardtype = RW_EXPLOSS;
+		else if ( succesrewardtype.compare( "e01" ) == 0 )
+			_rewardtype = RW_ZEROONE;
+		else {
+			cerr << "Unknown success reward type" << endl;
+			exit(-1);
+		}
+		
+		
 	}
 	
 	// -----------------------------------------------------------------------------------
@@ -272,7 +297,7 @@ namespace MultiBoost {
 		// save policy 
 		sprintf( tmpFileNameChar, "shyp_%d.xml", 0 );
 		tmpFileName = _outDir + tmpFileNameChar;		
-		_policy->save(tmpFileName);
+		_policy->save(tmpFileName,rolloutTrainingData);
 		
 		if (_verbose>0)
 			cout << "Classifying training." << endl;
@@ -321,7 +346,7 @@ namespace MultiBoost {
 			// save policy 
 			sprintf( tmpFileNameChar, "shyp_%d.xml", t+1 );
 			tmpFileName = _outDir + tmpFileNameChar;		
-			_policy->save(tmpFileName);			
+			_policy->save(tmpFileName,rolloutTrainingData);			
 			
 			if (_verbose>0)
 				cout << "Classifying training." << endl;			
@@ -904,7 +929,7 @@ namespace MultiBoost {
 	// -------------------------------------------------------------------------
 	AlphaReal MDDAGLearner::getReward( vector<AlphaReal>& margins, InputData* pData, int index )
 	{
-		AlphaReal reward;
+		AlphaReal reward=0.0;
 		
 		vector<Label>& labels = pData->getLabels(index);
 		vector<Label>::const_iterator lIt;
@@ -943,6 +968,32 @@ namespace MultiBoost {
 				}
 				
 				break;
+			case RW_EXPLOSS:
+				for(l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
+				{
+					if ( margins[l] != 0 )
+					{
+						allZero=0;
+						break;
+					}
+				}
+				
+				if (allZero==1) return 0.0;//return -1.0;
+				
+				for(l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
+				{
+					if (margins.size()<=2) // binary classification
+					{
+						reward = exp(-labels[0].y*margins[0]);
+					} else {
+                        for ( lIt = labels.begin(); lIt != labels.end(); ++lIt )
+                        {
+							reward += exp(-labels[lIt->idx].y*margins[lIt->idx]);
+                        }
+					}					
+				}
+				
+				break;
 			default:
 				break;
 		}
@@ -954,7 +1005,7 @@ namespace MultiBoost {
 	
 	void MDDAGLearner::classify(const nor_utils::Args& args)
 	{
-		AdaBoostMHClassifier classifier(args, _verbose);
+		MDDAGClassifier classifier(args, _verbose);
 		
 		// -test <dataFile> <shypFile>
 		string testFileName = args.getValue<string>("test", 0);
@@ -1028,185 +1079,6 @@ namespace MultiBoost {
 		
 		classifier.savePosteriors(testFileName, shypFileName, outFileName, numIterations, period);
 	}
-	
-	// -------------------------------------------------------------------------
-	// -------------------------------------------------------------------------
-	AlphaReal MDDAGLearner::updateWeights(OutputInfo* pOutInfo, InputData* pData, vector<BaseLearner*>& pWeakHypothesis){
-		const int numExamples = pData->getNumExamples();
-		const int numClasses = pData->getNumClasses();
-		
-		AlphaReal Z = 0; // The normalization factor
-		
-		// _hy will contain the margins
-		_hy.resize(numExamples);
-		for ( int i = 0; i < numExamples; ++i){
-			_hy[i].resize(numClasses);
-			fill( _hy[i].begin(), _hy[i].end(), 0.0 );
-		}
-		
-		
-		vector<BaseLearner*>::iterator it;
-		if (_verbose > 0)
-			cout << ": 0%." << flush;
-		
-		const int numIters = static_cast<int>(_foundHypotheses.size());
-		const int step = numIters < 5 ? 1 : numIters / 5;
-		
-		int t = 0;
-		// calculate the margins ( f^{t}(x_i) ), _hy will contain
-		for( it = pWeakHypothesis.begin(); it != pWeakHypothesis.end(); it++, t++ )
-		{
-			
-			if (_verbose > 1 && (t + 1) % step == 0)
-			{
-				float progress = static_cast<float>(t) / static_cast<float>(numIters) * 100.0;                             
-				cout << "." << setprecision(2) << progress << "%." << flush;
-			}
-			
-			BaseLearner* pWeakHypothesis = *it;
-			
-			const AlphaReal alpha = pWeakHypothesis->getAlpha();
-			AlphaReal hx;
-			for (int i = 0; i < numExamples; ++i)
-			{
-				vector<Label>& labels = pData->getLabels(i);
-				vector<Label>::iterator lIt;
-				for (lIt = labels.begin(); lIt != labels.end(); ++lIt )
-				{
-					hx = pWeakHypothesis->classify(pData, i, lIt->idx );
-					_hy[i][lIt->idx] += alpha * hx; // alpha * h_l(x_i)				
-					
-					lIt->weight *= exp( -alpha * hx * lIt->y );
-					
-					Z += lIt->weight;
-					
-					
-				}
-			}
-			// renormalize the weights
-			for (int i = 0; i < numExamples; ++i)
-			{
-				vector<Label>& labels = pData->getLabels(i);
-				vector<Label>::iterator lIt;
-				
-				for (lIt = labels.begin(); lIt != labels.end(); ++lIt )
-				{
-					lIt->weight /= Z;
-				}
-			}
-			
-			//i++;
-			//if ( i % 1000 == 0 ) cout << i <<endl;
-		}
-		
-		//upload the margins 
-		pOutInfo->setTable( pData, _hy );
-		return 0;
-	}
-	
-	// -------------------------------------------------------------------------
-	// -------------------------------------------------------------------------
-	
-	AlphaReal MDDAGLearner::updateWeights(InputData* pData, BaseLearner* pWeakHypothesis)
-	{
-		const int numExamples = pData->getNumExamples();
-		const int numClasses = pData->getNumClasses();
-		
-		const AlphaReal alpha = pWeakHypothesis->getAlpha();
-		
-		AlphaReal Z = 0; // The normalization factor
-		
-		_hy.resize(numExamples);
-		for ( int i = 0; i < numExamples; ++i) {
-			_hy[i].resize(numClasses);
-			fill( _hy[i].begin(), _hy[i].end(), 0.0 );
-		}
-		// recompute weights
-		// computing the normalization factor Z
-		
-		// for each example
-		for (int i = 0; i < numExamples; ++i)
-		{
-			vector<Label>& labels = pData->getLabels(i);
-			vector<Label>::iterator lIt;
-			
-			for (lIt = labels.begin(); lIt != labels.end(); ++lIt )
-			{
-				_hy[i][lIt->idx] = pWeakHypothesis->classify(pData, i, lIt->idx) * // h_l(x_i)
-				lIt->y;
-				Z += lIt->weight * // w
-				exp( 
-					-alpha * _hy[i][lIt->idx] // -alpha * h_l(x_i) * y_i
-					);
-				// important!
-				// _hy[i] must be a vector with different sizes, depending on the
-				// example!
-				// so it will become:
-				// _hy[i][l] 
-				// where l is NOT the index of the label (lIt->idx), but the index in the 
-				// label vector of the example
-			}
-		}
-		
-		AlphaReal gamma = 0;
-		
-		// Now do the actual re-weight
-		// (and compute the edge at the same time)
-		// for each example
-		for (int i = 0; i < numExamples; ++i)
-		{
-			vector<Label>& labels = pData->getLabels(i);
-			vector<Label>::iterator lIt;
-			
-			for (lIt = labels.begin(); lIt != labels.end(); ++lIt )
-			{
-				AlphaReal w = lIt->weight;
-				gamma += w * _hy[i][lIt->idx];
-				//if ( gamma < -0.8 ) {
-				//	cout << gamma << endl;
-				//}
-				// The new weight is  w * exp( -alpha * h(x_i) * y_i ) / Z
-				lIt->weight = w * exp( -alpha * _hy[i][lIt->idx] ) / Z;
-			}
-		}
-		
-		
-		//for (int i = 0; i < numExamples; ++i)
-		//{
-		//   for (int l = 0; l < numClasses; ++l)
-		//   {
-		//      _hy[i][l] = pWeakHypothesis->classify(pData, i, l) * // h_l(x_i)
-		//                  pData->getLabel(i, l); // y_i
-		
-		//      Z += pData->getWeight(i, l) * // w
-		//           exp( 
-		//             -alpha * _hy[i][l] // -alpha * h_l(x_i) * y_i
-		//           );
-		//   } // numClasses
-		//} // numExamples
-		
-		// The edge. It measures the
-		// accuracy of the current weak hypothesis relative to random guessing
-		
-		//// Now do the actual re-weight
-		//// (and compute the edge at the same time)
-		//for (int i = 0; i < numExamples; ++i)
-		//{
-		//   for (int l = 0; l < numClasses; ++l)
-		//   {  
-		//      float w = pData->getWeight(i, l);
-		
-		//      gamma += w * _hy[i][l];
-		
-		//      // The new weight is  w * exp( -alpha * h(x_i) * y_i ) / Z
-		//      pData->setWeight( i, l, 
-		//                        w * exp( -alpha * _hy[i][l] ) / Z );
-		//   } // numClasses
-		//} // numExamples
-		
-		return gamma;
-	}
-	
 	// -------------------------------------------------------------------------
 	
 	int MDDAGLearner::resumeWeakLearners(InputData* pTrainingData)
@@ -1257,35 +1129,6 @@ namespace MultiBoost {
 		
 		if (_verbose > 0)
 			cout << "Resuming up to iteration " << _foundHypotheses.size() - 1 << ": 0%." << flush;
-		
-		// simulate the AdaBoost algorithm for the weak learners already found
-		for (it = _foundHypotheses.begin(), t = 0; it != _foundHypotheses.end(); ++it, ++t)
-		{
-			BaseLearner* pWeakHypothesis = *it;
-			
-			// Output the step-by-step information
-			printOutputInfo(pOutInfo, t, pTrainingData, pTestData, pWeakHypothesis);
-			
-			// Updates the weights and returns the edge
-			AlphaReal gamma = updateWeights(pTrainingData, pWeakHypothesis);
-			
-			if (_verbose > 1 && (t + 1) % step == 0)
-			{
-				float progress = static_cast<float>(t) / static_cast<float>(numIters) * 100.0;                             
-				cout << "." << setprecision(2) << progress << "%." << flush;
-			}
-			
-			// If gamma <= theta there is something really wrong.
-			if (gamma <= _theta)
-			{
-				cerr << "ERROR!" <<  setprecision(4) << endl
-				<< "At iteration <" << t << ">, edge smaller than the edge offset (theta). Something must be wrong!" << endl
-				<< "[Edge: " << gamma << " < Offset: " << _theta << "]" << endl
-				<< "Is the data file the same one used during the original training?" << endl;
-				//          exit(1);
-			}
-			
-		}  // loop on iterations
 		
 		
 		if (_verbose > 0)
@@ -1414,3 +1257,4 @@ namespace MultiBoost {
 	// -------------------------------------------------------------------------
 	// -------------------------------------------------------------------------
 }
+

@@ -55,6 +55,9 @@ namespace MultiBoost {
 		GenericClassificationBasedPolicy(const nor_utils::Args& args, const int actionNumber) : _args( args )
 		{
 			_actionNum = actionNumber;
+			if ( args.hasArgument("verbose") )
+				args.getValue("verbose", 0, _verbose);
+
 		}
 		
 		
@@ -69,12 +72,17 @@ namespace MultiBoost {
 		virtual int getNextAction( InputData* state );
 		virtual int getExplorationNextAction( InputData* state );
 		
-		virtual void save( const string fname ) = 0;
+		// IO
+		virtual void save( const string fname, InputData* pData = NULL ) = 0;
+		virtual int  load( const string fname, InputData* pData ) = 0;
+		
+		// 2 or 3
 		virtual void setActionNumber( int actionNumber ) { _actionNum = actionNumber; }
 	protected:
 		int _actionNum;
 		const nor_utils::Args& _args;
 		string _baseLearnerName;
+		int _verbose;
 	};
 	//-------------------------------------------------------------------
 	//-------------------------------------------------------------------
@@ -100,7 +108,7 @@ namespace MultiBoost {
 			return action;
 		}
 		
-		virtual void save( const string fname ) 
+		virtual void save( const string fname, InputData* pData = NULL ) 
 		{
 			ofstream ofile( fname.c_str() );
 			if (!ofile.is_open() )
@@ -113,6 +121,7 @@ namespace MultiBoost {
 			ofile.close();
 		}
 		
+		virtual int load( const string fname, InputData* pData ) {} 
 	};
 	
 	
@@ -122,12 +131,19 @@ namespace MultiBoost {
 	{		
 	public:
 		AdaBoostPolicy(const nor_utils::Args& args, const int actionNumber) : GenericClassificationBasedPolicy(args,actionNumber) {}
+		AdaBoostPolicy(const nor_utils::Args& args, const int actionNumber, vector<BaseLearner*>& baselearners ) : GenericClassificationBasedPolicy(args,actionNumber) 
+		{
+			_weakhyp.resize(baselearners.size());
+			copy(baselearners.begin(), baselearners.end(), _weakhyp.begin() );
+		}
 		
 		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations );
 		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution );
-		virtual void save( const string fname );
 		
-		virtual int getBaseLearnerNum() { return _weakhyp.size(); }
+		virtual void save( const string fname, InputData* pData = NULL );
+		virtual int  load( const string fname, InputData* pData );
+		
+		virtual int getBaseLearnerNum() { return _weakhyp.size(); }		
 		virtual BaseLearner* getithBaseLearner( int i ) { return _weakhyp[i]; }
 	protected:
 		vector<BaseLearner*> _weakhyp;		
@@ -149,7 +165,8 @@ namespace MultiBoost {
 		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution );
 		virtual void getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution );
 		
-		virtual void save( const string fname );
+		virtual void save( const string fname, InputData* pData = NULL );
+		virtual int  load( const string fname, InputData* pData );
 		
 	protected:
 		vector< GenericClassificationBasedPolicy* >	_policies;

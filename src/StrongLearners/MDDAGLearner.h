@@ -119,49 +119,6 @@ namespace MultiBoost {
         virtual void doPosteriors(const nor_utils::Args& args);
         
         
-        /**
-         * Updates the weights of the examples.
-         * The re-weighting of \f$w\f$ (the weight vector over all the examples and classes)
-         * is done using the following formula
-         * \f[
-         *  w^{(t+1)}_{i, \ell}=
-         *        \frac{ w^{(t)}_{i, \ell} \exp \left( -\alpha^{(t)} 
-         *        h_\ell^{(t)}(x_i) y_{i, \ell} \right) }{ Z^{(t)} }
-         * \f]
-         * where \a Z is a normalization factor, and it is defined as
-         * \f[
-         *  Z^{(t)} = 
-         *     \sum_{j=1}^n \sum_{\ell=1}^k w^{(t)}_{j, \ell} \exp \left( -\alpha^{(t)} 
-         *        h_\ell^{(t)}(x_j) y_{j, \ell} \right) 
-         * \f]
-         * where \f$n\f$ is the number of examples, \f$k\f$ the number of classes,
-         * \f$\alpha\f$ is the confidence in the weak classifier,
-         * \f$h_\ell(x_i)\f$ is the classification of example \f$x_i\f$ for class \f$\ell\f$ 
-         * with the classifier found at the current iteration (see BaseLearner::classify()), 
-         * and \f$y_i\f$ is the binary label of that 
-         * example, defined in InputData::getBinaryClass().
-         * \param pTrainingData The pointer to the training data.
-         * \param pWeakHypothesis The current weak hypothesis.
-         * \return The value of the edge. It will be used to see if the algorithm can continue
-         * with learning.
-         * \date 16/11/2005
-         */
-        AlphaReal updateWeights(InputData* pTrainingData, BaseLearner* pWeakHypothesis);
-        
-        /**
-         * Updates the weights of the examples. If the slowresumeprocess is on, we do not calculate the 
-         * weights in every iteration, but we calculate the re-weighting based on the exponential margins. 
-         * Let's assume that it is given a strong learner \f$\f^{(t)}(\bx)\$f after t iteration.
-         * Then the weights of the \f$t+1\f$ iteration can be written as
-         * \f[
-         * w^{(t+1)}_{i, \ell}=  
-         *        \frac{ \exp \left( -f\ell^{(t)}(x_i) y_{i, \ell}\right) }
-         *         { \sum_{i^{\prime}=1}^{N} \exp \left( -f\ell^{(t)}(x_{i^{\prime}}) y_{{i^{\prime}}, \ell}\right) }
-         * \f]
-         * Using this formula we avoid the iterationwise normalisation. But in this way we are not able to 
-         * calulculate the the error rates in every iteration.
-         */
-        AlphaReal updateWeights(OutputInfo* pOutInfo, InputData* pData, vector<BaseLearner*>& pWeakHypothesis); //for fast resume process, because we calculate the weights of the samples based on the margin
         
         /**
          * Print output information if option --outputinfo is specified.
@@ -274,3 +231,4 @@ namespace MultiBoost {
 } // end of namespace MultiBoost
 
 #endif // __MDDAG_H
+
