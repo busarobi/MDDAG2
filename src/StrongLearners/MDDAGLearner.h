@@ -118,18 +118,7 @@ namespace MultiBoost {
          */
         virtual void doPosteriors(const nor_utils::Args& args);
         
-        
-        
-        /**
-         * Print output information if option --outputinfo is specified.
-         * Called from run and resumeProcess
-         * \see resumeProcess
-         * \see run
-         * \date 21/04/2007
-         */
-        void printOutputInfo(OutputInfo* pOutInfo, int t, InputData* pTrainingData, 
-                             InputData* pTestData, BaseLearner* pWeakHypothesis);
-        
+                
 		/**
 		 * Compute the results using the weak hypotheses.
 		 * This method is the one that effectively computes \f${\bf g}(x)\f$.
@@ -146,14 +135,13 @@ namespace MultiBoost {
 		void rollout( InputData* pData, const string fname, GenericClassificationBasedPolicy* policy = NULL );
 		
 		AlphaReal getReward( vector<AlphaReal>& margins, InputData* pData, int index );
-		
-		
+				
 		AlphaReal getErrorRate(InputData* pData, const char* fname, PolicyResult& policyResult );
 		
 		inline virtual void getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins );
     protected:
 		inline int normalizeWeights( vector<AlphaReal>& weights );
-		inline AlphaReal getPosteriors( vector<AlphaReal>& margins, vector<AlphaReal>& posteriors, int iter );
+		inline AlphaReal getNormalizedScores( vector<AlphaReal>& scores, vector<AlphaReal>& normalizedScores, int iter );
 		
         AlphaReal genHeader( ofstream& out, int fnum );
         /**

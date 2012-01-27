@@ -378,7 +378,7 @@ int main(int argc, const char* argv[])
 	args.declareArgument("beta", "Trade-off parameter", 1, "<beta>");
 	args.declareArgument("outdir", "Output directory.", 1, "<outdir>");
 	args.declareArgument("policyalpha", "Alpha for policy array.", 1, "<alpha>");
-	args.declareArgument("succrewartdtype", "Rewrd type (e01 or hammng)", 1, "<rward_type");
+	args.declareArgument("succrewardtype", "Rewrd type (e01 or hammng)", 1, "<rward_type");
 	
 	// for VJ cascade
 	VJCascadeLearner::declareBaseArguments(args);

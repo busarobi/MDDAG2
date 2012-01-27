@@ -164,6 +164,18 @@ public:
    */
    virtual void subCopyState(BaseLearner *pBaseLearner);
 
+	/**
+	 * Sets _pTrainingData. Should be called before run()
+	 * \param pTrainingData Pointer to the training data
+	 * \date 19/04/2007
+	 */
+	virtual void setTrainingData(InputData *pTrainingData) 
+	{	
+		_pTrainingData = pTrainingData;
+		for (int i=0; i<_baseLearners.size();++i) dynamic_cast<BaseLearner*>(_baseLearners[i])->setTrainingData( pTrainingData );
+	}
+	
+	
 protected:
 
    vector<BaseLearner*> _baseLearners; //!< the learners of the product

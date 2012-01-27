@@ -172,6 +172,20 @@ namespace MultiBoost {
 		 */
 		virtual void save(ofstream& outputStream, int numTabs = 0);
 		
+		
+		/**
+		 * Sets _pTrainingData. Should be called before run()
+		 * \param pTrainingData Pointer to the training data
+		 * \date 19/04/2007
+		 */
+		virtual void setTrainingData(InputData *pTrainingData) 
+		{	
+			_pTrainingData = pTrainingData;
+			for (int i=0; i<_baseLearners.size();++i) dynamic_cast<BaseLearner*>(_baseLearners[i])->setTrainingData( pTrainingData );
+		}
+		
+		
+		
 		/**
 		 * Load the xml file that contains the serialized information
 		 * needed for the classification and that belongs to this class.

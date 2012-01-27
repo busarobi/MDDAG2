@@ -136,8 +136,8 @@ namespace MultiBoost {
 
 		
 		string succesrewardtype = "";
-		if ( args.hasArgument( "succrewartdtype" ) )
-			args.getValue("succrewartdtype", 0, succesrewardtype );
+		if ( args.hasArgument( "succrewardtype" ) )
+			args.getValue("succrewardtype", 0, succesrewardtype );
 		else {	
 			cerr << "No reward type is given, set to zeroone" << endl;
 			succesrewardtype = "e01";
@@ -163,6 +163,20 @@ namespace MultiBoost {
 	{
 		// load the arguments
 		this->getArgs(args);
+				
+		if ( !_outputInfoFile.empty() ) 
+		{
+			
+			_outStream.open((_outDir+_outputInfoFile).c_str());
+			
+			// is it really open?
+			if ( !_outStream.is_open() )
+			{
+				cerr << "ERROR: cannot open the output steam (<" 
+				<< _outputInfoFile << ">) for the step-by-step info!" << endl;
+				exit(1);
+			}			
+		}
 				
 		// get the registered weak learner (type from name)
 		_inBaseLearnerName = UnSerialization::getWeakLearnerName(_inshypFileName);		
@@ -243,19 +257,6 @@ namespace MultiBoost {
 		if (_verbose>0)
 			cout << "Iteration number of input model:\t" << _shypIter << endl;
 		
-		if ( !_outputInfoFile.empty() ) 
-		{
-			
-			_outStream.open((_outDir+_outputInfoFile).c_str());
-			
-			// is it really open?
-			if ( !_outStream.is_open() )
-			{
-				cerr << "ERROR: cannot open the output steam (<" 
-				<< _outputInfoFile << ">) for the step-by-step info!" << endl;
-				exit(1);
-			}			
-		}
 		_outStream << trainError << "\t" << testError << endl << flush;
 		_outStream << "Iter" << "\t" << "R.Err." << "\t" << "Err." << "\t" << "P.Err." << "\t" << "Evalcl" << "\t" << "Rew."; 
 		_outStream << "\t" << "Err." << "\t" << "P.Err." << "\t" << "Evalcl" << "\t" << "Rew." << "\t" << flush << endl;
@@ -437,7 +438,7 @@ namespace MultiBoost {
 		// gen header
 		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
 		{
-			genHeader(rolloutStream, numClasses+5);
+			genHeader(rolloutStream, numClasses+4);
 		} if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
 		{
 			genHeader(rolloutStream, numClasses+3);
@@ -853,6 +854,7 @@ namespace MultiBoost {
 		out << "@DATA" << endl;
 		out << flush;
 	}
+	
 	// -------------------------------------------------------------------------
 	void MDDAGLearner::getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins )
 	{
@@ -862,9 +864,9 @@ namespace MultiBoost {
 			int classNum = margins.size();
 			
 			vector<AlphaReal> posteriors( classNum );
-			AlphaReal sumOfPosterios = getPosteriors( margins, posteriors, iter );
+			AlphaReal sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
 			
-			state.resize(classNum+5);
+			state.resize(classNum+4);
 			for(int l=0; l<classNum; ++l )
 				state[l] = posteriors[l];					
 			
@@ -876,7 +878,7 @@ namespace MultiBoost {
 			state[classNum+2] = rect.width; 
 			state[classNum+3] =  rect.height;
 			//state[classNum+4] = iter; 
-			state[classNum+4] = sumOfPosterios; 
+			//state[classNum+4] = sumOfPosterios; 
 		} else if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) == 0)
 		{
 			int classNum = margins.size();
@@ -894,27 +896,28 @@ namespace MultiBoost {
 		
 	}
 	// -------------------------------------------------------------------------
-	AlphaReal MDDAGLearner::getPosteriors( vector<AlphaReal>& margins, vector<AlphaReal>& posteriors, int iter )
+	AlphaReal MDDAGLearner::getNormalizedScores( vector<AlphaReal>& scores, vector<AlphaReal>& normalizedScores, int iter )
 	{
 		if (iter==0) 
 		{
-			fill( posteriors.begin(), posteriors.end(), 0.0 );
+			normalizedScores.resize(scores.size());
+			fill( normalizedScores.begin(), normalizedScores.end(), 0.0 );
 			return 0.0;
 		}
 		
-		const int classNum = margins.size();
+		const int classNum = scores.size();
 		AlphaReal sumOfMargins = 0.0;
 		for ( int i=0; i<classNum; ++i ) 
 		{	
-			posteriors[i] = margins[i];
-			sumOfMargins += abs(margins[i]);
+			normalizedScores[i] = scores[i];
+			sumOfMargins += abs(scores[i]);
 		}
 		
 		if ( ! nor_utils::is_zero( sumOfMargins ) )
 		{
 			for ( int i=0; i<classNum; ++i ) 
 			{
-				posteriors[i] /= sumOfMargins;		
+				normalizedScores[i] /= sumOfMargins;		
 //				if ( posteriors[i] != posteriors[i])
 //				{
 //					cout << "NaN" << endl;
@@ -980,17 +983,14 @@ namespace MultiBoost {
 				
 				if (allZero==1) return 0.0;//return -1.0;
 				
-				for(l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
+				if (margins.size()<=2) // binary classification
 				{
-					if (margins.size()<=2) // binary classification
+					reward = exp(-labels[0].y*margins[0]);
+				} else {
+					for ( lIt = labels.begin(); lIt != labels.end(); ++lIt )
 					{
-						reward = exp(-labels[0].y*margins[0]);
-					} else {
-                        for ( lIt = labels.begin(); lIt != labels.end(); ++lIt )
-                        {
-							reward += exp(-labels[lIt->idx].y*margins[lIt->idx]);
-                        }
-					}					
+						reward += exp(-labels[lIt->idx].y*margins[lIt->idx]);
+					}
 				}
 				
 				break;
@@ -1005,43 +1005,24 @@ namespace MultiBoost {
 	
 	void MDDAGLearner::classify(const nor_utils::Args& args)
 	{
-		MDDAGClassifier classifier(args, _verbose);
-		
-		// -test <dataFile> <shypFile>
-		string testFileName = args.getValue<string>("test", 0);
-		string shypFileName = args.getValue<string>("test", 1);
-		int numIterations = args.getValue<int>("test", 2);
-		
-		string outResFileName;
-		if ( args.getNumValues("test") > 3 )
-			args.getValue("test", 3, outResFileName);
-		
-		classifier.run(testFileName, shypFileName, numIterations, outResFileName);
+//		MDDAGClassifier classifier(args, _verbose);
+//		
+//		// -test <dataFile> <shypFile>
+//		string testFileName = args.getValue<string>("test", 0);
+//		string shypFileName = args.getValue<string>("test", 1);
+//		int numIterations = args.getValue<int>("test", 2);
+//		
+//		string outResFileName;
+//		if ( args.getNumValues("test") > 3 )
+//			args.getValue("test", 3, outResFileName);
+//		
+//		classifier.run(testFileName, shypFileName, numIterations, outResFileName);
 	}
 	
 	// -------------------------------------------------------------------------
 	
 	void MDDAGLearner::doConfusionMatrix(const nor_utils::Args& args)
 	{
-		AdaBoostMHClassifier classifier(args, _verbose);
-		
-		// -cmatrix <dataFile> <shypFile>
-		if ( args.hasArgument("cmatrix") )
-		{
-			string testFileName = args.getValue<string>("cmatrix", 0);
-			string shypFileName = args.getValue<string>("cmatrix", 1);
-			
-			classifier.printConfusionMatrix(testFileName, shypFileName);
-		}
-		// -cmatrixfile <dataFile> <shypFile> <outFile>
-		else if ( args.hasArgument("cmatrixfile") )
-		{
-			string testFileName = args.getValue<string>("cmatrix", 0);
-			string shypFileName = args.getValue<string>("cmatrix", 1);
-			string outResFileName = args.getValue<string>("cmatrix", 2);
-			
-			classifier.saveConfusionMatrix(testFileName, shypFileName, outResFileName);
-		}
 	}
 	// -------------------------------------------------------------------------
 	// -------------------------------------------------------------------------
@@ -1064,8 +1045,10 @@ namespace MultiBoost {
 	// -------------------------------------------------------------------------
 	
 	void MDDAGLearner::doPosteriors(const nor_utils::Args& args)
-	{
-		AdaBoostMHClassifier classifier(args, _verbose);
+	{		
+		// load the arguments
+		this->getArgs(args);
+
 		int numofargs = args.getNumValues( "posteriors" );
 		// -posteriors <dataFile> <shypFile> <outFile> <numIters>
 		string testFileName = args.getValue<string>("posteriors", 0);
@@ -1077,7 +1060,103 @@ namespace MultiBoost {
 		if ( numofargs == 5 )
 			period = args.getValue<int>("posteriors", 4);
 		
-		classifier.savePosteriors(testFileName, shypFileName, outFileName, numIterations, period);
+		//////////////////////////////////////////
+		// strong classifier
+		//////////////////////////////////////////		
+		
+		// get the registered weak learner (type from name)
+		_inBaseLearnerName = UnSerialization::getWeakLearnerName(shypFileName);		
+		BaseLearner*  pWeakHypothesisSource = BaseLearner::RegisteredLearners().getLearner(_inBaseLearnerName);
+		
+		// initialize learning options; normally it's done in the strong loop
+		// also, here we do it for Product learners, so input data can be created
+		pWeakHypothesisSource->initLearningOptions(args);		
+		
+		// get the testing input data, and load it
+		InputData* pTestData = NULL;
+		pTestData = pWeakHypothesisSource->createInputData();
+		pTestData->initOptions(args);
+		pTestData->load(testFileName, IT_TEST, _verbose);
+		
+		// The class that loads the weak hypotheses
+		UnSerialization us;
+		
+		// loads them
+		us.loadHypotheses(shypFileName, _foundHypotheses, pTestData);
+		_foundHypotheses.resize(numIterations);
+		_shypIter=numIterations;
+		
+		//////////////////////////////////////////
+		// policy
+		//////////////////////////////////////////		
+		string policyShypFileName("");
+		
+		if ( args.hasArgument("shypname") )
+			args.getValue("shypname", 0, policyShypFileName);
+		else
+			policyShypFileName = string(SHYP_NAME);
+		
+		policyShypFileName = nor_utils::addAndCheckExtension(policyShypFileName, SHYP_EXTENSION);
+		
+		
+		char tmpFileNameChar[4096];
+		string rolloutDataFile;
+		
+						
+		// load the policy 
+		_rollouts = 100;
+		
+		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
+		InputData* rolloutTrainingData;
+
+		if (_verbose>0)
+			cout << "Rollout...";
+		
+		sprintf( tmpFileNameChar, "tmp.txt" );
+		rolloutDataFile = _outDir + tmpFileNameChar;
+		
+		rollout( pTestData, rolloutDataFile );
+		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
+		
+		if (_verbose>0)
+			cout << "Done." << endl;
+		
+		if (_verbose>0)
+			cout << "Loading policy from " << policyShypFileName << "...";
+				
+		_policy->load(policyShypFileName, rolloutTrainingData);
+
+		if (_verbose>0)
+			cout << "Done." << endl;
+
+		//////////////////////////////////////////
+		// posteriors
+		//////////////////////////////////////////	
+		PolicyResult policyResultTest;
+		getErrorRate(pTestData, outFileName.c_str(), policyResultTest);
+		if ( !_outputInfoFile.empty() ) 
+		{
+			
+			_outStream.open(_outputInfoFile.c_str());
+			
+			// is it really open?
+			if ( !_outStream.is_open() )
+			{
+				cerr << "ERROR: cannot open the output steam (<" 
+				<< _outputInfoFile << ">) for the step-by-step info!" << endl;
+				exit(1);
+			}			
+		}
+		_outStream << "Error" << "\t" << "Evaluated" << "\t" << "Avg. Rew." << "\t" << endl;
+		_outStream << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
+		_outStream << endl << flush;
+
+		cout << "Error" << "\t" << "Evaluated" << "\t" << "Avg. Rew." << "\t" << endl;
+		cout << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
+		cout << endl << flush;
+		
+		
+		_outStream.close();
 	}
 	// -------------------------------------------------------------------------
 	
@@ -1136,41 +1215,6 @@ namespace MultiBoost {
 		
 	}
 	
-	// -------------------------------------------------------------------------
-	
-	void MDDAGLearner::printOutputInfo(OutputInfo* pOutInfo, int t, 
-									   InputData* pTrainingData, InputData* pTestData, 
-									   BaseLearner* pWeakHypothesis)
-	{
-		
-		pOutInfo->outputIteration(t);
-        pOutInfo->outputCustom(pTrainingData, pWeakHypothesis);
-		//		pOutInfo->outputError(pTrainingData, pWeakHypothesis);
-		if (pTestData)
-        {
-			//			pOutInfo->outputError(pTestData, pWeakHypothesis);
-            pOutInfo->separator();
-            pOutInfo->outputCustom(pTestData, pWeakHypothesis);
-            
-        }
-        
-		//		pOutInfo->outputWeightedError(pTrainingData);
-		//		if (pTestData)
-		//			pOutInfo->outputWeightedError(pTestData);
-		
-		
-		/*
-		 pOutInfo->outputMargins(pTrainingData, pWeakHypothesis);
-		 pOutInfo->outputEdge(pTrainingData, pWeakHypothesis);
-		 if (pTestData)
-		 pOutInfo->outputMargins(pTestData, pWeakHypothesis);
-		 pOutInfo->outputMAE(pTrainingData);      
-		 if (pTestData)
-		 pOutInfo->outputMAE(pTestData);  
-		 */
-		pOutInfo->outputCurrentTime();
-		pOutInfo->endLine();
-	}
 	
 	// -------------------------------------------------------------------------
 	// -------------------------------------------------------------------------	
