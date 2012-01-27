@@ -63,7 +63,10 @@ namespace MultiBoost {
 		RW_EXPLOSS
 	};
 	
-	struct PolicyResult {
+	class PolicyResult {
+	public:
+		PolicyResult() :numOfEvaluatedClassifier(0.0), errorRate(0.0), avgReward(0.0) {}
+		
 		AlphaReal numOfEvaluatedClassifier;
 		AlphaReal errorRate;
 		AlphaReal avgReward;

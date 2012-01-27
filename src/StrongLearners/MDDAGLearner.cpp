@@ -304,13 +304,13 @@ namespace MultiBoost {
 			cout << "Classifying training." << endl;
 		sprintf( outfilename, "outtrain_%d.txt", 0 );
 		tmpFileName = _outDir + outfilename;
-		getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain );
+		//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain );
 		
 		if (_verbose>0)
 			cout << "Classifying test." << endl;
 		sprintf( outfilename, "outtest_%d.txt", 0 );
 		tmpFileName = _outDir + outfilename;
-		getErrorRate(pTestData,tmpFileName.c_str(), policyResultTest);
+		//getErrorRate(pTestData,tmpFileName.c_str(), policyResultTest);
 		
 		_outStream << "0\t" << policyError; 
 		_outStream << "\t" << trainError << "\t" << policyResultTrain.errorRate << "\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTrain.avgReward;
@@ -353,7 +353,7 @@ namespace MultiBoost {
 				cout << "Classifying training." << endl;			
 			sprintf( outfilename, "outtrain_%d.txt", t+1 );
 			tmpFileName = _outDir + outfilename;
-			getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+			//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
 			
 			if (_verbose>0)
 				cout << "Classifying test." << endl;			
