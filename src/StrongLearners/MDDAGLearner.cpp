@@ -773,9 +773,11 @@ namespace MultiBoost {
 				{
 					usedClassifier.push_back(t);
 					overAllUsedClassifier++;
+					
+					AlphaReal currentAlpha = _foundHypotheses[t]->getAlpha();
 					for( int l=0; l<classNum; ++l )
 					{
-						results[l] += _foundHypotheses[t]->getAlpha() * _foundHypotheses[t]->classify(pData,i,l);
+						results[l] += currentAlpha * _foundHypotheses[t]->classify(pData,i,l);
 					}
 				} else if (action == 2 )
 					break; //quit
@@ -938,6 +940,9 @@ namespace MultiBoost {
 		vector<Label>::const_iterator lIt;
 		
 		AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
+		AlphaReal maxNegClass = -numeric_limits<AlphaReal>::max();
+		AlphaReal minPosClass = numeric_limits<AlphaReal>::max();
+		
 		int forecastlabel = -1;
 		int l;
 		int allZero = 1;
@@ -953,22 +958,43 @@ namespace MultiBoost {
 				}
 				
 				if (allZero==1) return 0.0;//return -1.0;
+
+				maxNegClass = -numeric_limits<AlphaReal>::max();
+				minPosClass = numeric_limits<AlphaReal>::max();
 				
-				for(l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
+				for ( l=0,lIt = labels.begin(); lIt != labels.end(); ++lIt, ++l )
 				{
-					if (margins[l]>maxMargin)
-					{
-						maxMargin=margins[l];
-						forecastlabel=l;
-					}										
+					// get the negative winner class
+					if ( lIt->y < 0 && margins[l] > maxNegClass )
+						maxNegClass = margins[l];
+					
+					// get the positive winner class
+					if ( lIt->y > 0 && margins[l] < minPosClass )
+						minPosClass = margins[l];
 				}
-				if (labels[forecastlabel].y>0)
-				{
-					reward=1.0;
-				} else {
-					//reward=-1.0;
+				
+				// if the vote for the worst positive label is lower than the
+				// vote for the highest negative label -> error
+				if (minPosClass <= maxNegClass)
 					reward=0.0;
-				}
+				else 
+					reward=1.0;
+				
+//				for(l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
+//				{
+//					if (margins[l]>maxMargin)
+//					{
+//						maxMargin=margins[l];
+//						forecastlabel=l;
+//					}										
+//				}
+//				if (labels[forecastlabel].y>0)
+//				{
+//					reward=1.0;
+//				} else {
+//					//reward=-1.0;
+//					reward=0.0;
+//				}
 				
 				break;
 			case RW_EXPLOSS:
