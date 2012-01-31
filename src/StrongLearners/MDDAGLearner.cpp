@@ -704,9 +704,7 @@ namespace MultiBoost {
 		//			{
 		//				weights[i] = weights[i] - maxVal;
 		//			}
-		//		}	
-		
-		if (weights.size() <= 2 ) return weights[0];
+		//		}			
 		
 		AlphaReal minValue = numeric_limits<AlphaReal>::max();
 		AlphaReal maxValue = -numeric_limits<AlphaReal>::max();
@@ -873,9 +871,10 @@ namespace MultiBoost {
 		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) == 0)
 		{									
 			int classNum = margins.size();
-			
+			AlphaReal sumOfPosterios = 0.0;
 			vector<AlphaReal> posteriors( classNum );
-			AlphaReal sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
+			if ( classNum >= 2 )
+				sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
 			
 			state.resize(classNum+4);
 			for(int l=0; l<classNum; ++l )
