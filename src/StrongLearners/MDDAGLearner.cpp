@@ -357,7 +357,7 @@ namespace MultiBoost {
 				cout << "Classifying training." << endl;			
 			sprintf( outfilename, "outtrain_%d.txt", t+1 );
 			tmpFileName = _outDir + outfilename;
-			getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+			//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
 			
 			if (_verbose>0)
 				cout << "Classifying test." << endl;			
