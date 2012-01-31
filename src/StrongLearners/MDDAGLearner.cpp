@@ -873,7 +873,7 @@ namespace MultiBoost {
 			int classNum = margins.size();
 			AlphaReal sumOfPosterios = 0.0;
 			vector<AlphaReal> posteriors( classNum );
-			if ( classNum >= 2 )
+			if ( classNum > 2 )
 				sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
 			
 			state.resize(classNum+4);
