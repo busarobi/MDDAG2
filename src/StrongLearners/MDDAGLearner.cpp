@@ -275,54 +275,58 @@ namespace MultiBoost {
 		PolicyResult policyResultTrain;
 		PolicyResult policyResultTest;
 		
+		InputData* rolloutTrainingData;
+		
+		// create policy 
+		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
 		
 		char outfilename[4096];
 		string rolloutDataFile;
 		char tmpFileNameChar[4096];
 		string tmpFileName;
-		cout << "********************************* 0. **********************************" << endl;
-		
-		sprintf( tmpFileNameChar, "rollout_%d.txt", 0 );
-		rolloutDataFile = _outDir + tmpFileNameChar;
-		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
-		InputData* rolloutTrainingData;
-		
-		if (_verbose>0)
-			cout << "Rollout..." << endl;
-		rollout( pTrainingData, rolloutDataFile );
-		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
-		
-		//train policy 
-		policyError = _policy->trainpolicy( rolloutTrainingData, _baseLearnerName, _trainingIter );		
-		
-		// save policy 
-		sprintf( tmpFileNameChar, "shyp_%d.xml", 0 );
-		tmpFileName = _outDir + tmpFileNameChar;		
-		_policy->save(tmpFileName,rolloutTrainingData);
-		
-		if (_verbose>0)
-			cout << "Classifying training." << endl;
-		sprintf( outfilename, "outtrain_%d.txt", 0 );
-		tmpFileName = _outDir + outfilename;
-		//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain );
-		
-		if (_verbose>0)
-			cout << "Classifying test." << endl;
-		sprintf( outfilename, "outtest_%d.txt", 0 );
-		tmpFileName = _outDir + outfilename;
-		getErrorRate(pTestData,tmpFileName.c_str(), policyResultTest);
-		
-		_outStream << "0\t" << policyError; 
-		_outStream << "\t" << trainError << "\t" << policyResultTrain.errorRate << "\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTrain.avgReward;
-		_outStream << "\t" << testError << "\t" << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
-		_outStream << endl << flush;
-		
-		cout << "Policy training error:\t" << policyError << endl;
-		cout << "Error (train/test):\t" << policyResultTrain.errorRate << "\t" << policyResultTest.errorRate << endl;
-		cout << "Num of evaluated BL (train/test):\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTest.numOfEvaluatedClassifier << endl << flush;
-		cout << "result filename: " << outfilename << endl;
-		
-		delete rolloutTrainingData;
+//		cout << "********************************* 0. **********************************" << endl;
+//		
+//		sprintf( tmpFileNameChar, "rollout_%d.txt", 0 );
+//		rolloutDataFile = _outDir + tmpFileNameChar;
+//		
+//		
+//		
+//		if (_verbose>0)
+//			cout << "Rollout..." << endl;
+//		rollout( pTrainingData, rolloutDataFile );
+//		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
+//		
+//		//train policy 
+//		policyError = _policy->trainpolicy( rolloutTrainingData, _baseLearnerName, _trainingIter );		
+//		
+//		// save policy 
+//		sprintf( tmpFileNameChar, "shyp_%d.xml", 0 );
+//		tmpFileName = _outDir + tmpFileNameChar;		
+//		_policy->save(tmpFileName,rolloutTrainingData);
+//		
+//		if (_verbose>0)
+//			cout << "Classifying training." << endl;
+//		sprintf( outfilename, "outtrain_%d.txt", 0 );
+//		tmpFileName = _outDir + outfilename;
+//		//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain );
+//		
+//		if (_verbose>0)
+//			cout << "Classifying test." << endl;
+//		sprintf( outfilename, "outtest_%d.txt", 0 );
+//		tmpFileName = _outDir + outfilename;
+//		getErrorRate(pTestData,tmpFileName.c_str(), policyResultTest);
+//		
+//		_outStream << "0\t" << policyError; 
+//		_outStream << "\t" << trainError << "\t" << policyResultTrain.errorRate << "\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTrain.avgReward;
+//		_outStream << "\t" << testError << "\t" << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
+//		_outStream << endl << flush;
+//		
+//		cout << "Policy training error:\t" << policyError << endl;
+//		cout << "Error (train/test):\t" << policyResultTrain.errorRate << "\t" << policyResultTest.errorRate << endl;
+//		cout << "Num of evaluated BL (train/test):\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTest.numOfEvaluatedClassifier << endl << flush;
+//		cout << "result filename: " << outfilename << endl;
+//		
+//		delete rolloutTrainingData;
 		
 		for (int t = 0; t < _numIterations; ++t)
 		{
@@ -353,7 +357,7 @@ namespace MultiBoost {
 				cout << "Classifying training." << endl;			
 			sprintf( outfilename, "outtrain_%d.txt", t+1 );
 			tmpFileName = _outDir + outfilename;
-			//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+			getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
 			
 			if (_verbose>0)
 				cout << "Classifying test." << endl;			
@@ -992,7 +996,6 @@ namespace MultiBoost {
 //				{
 //					reward=1.0;
 //				} else {
-//					//reward=-1.0;
 //					reward=0.0;
 //				}
 				

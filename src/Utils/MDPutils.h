@@ -52,7 +52,7 @@ namespace MultiBoost {
 	class GenericClassificationBasedPolicy
 	{
 	public:
-		GenericClassificationBasedPolicy(const nor_utils::Args& args, const int actionNumber) : _args( args )
+		GenericClassificationBasedPolicy(const nor_utils::Args& args, const int actionNumber, const string ID) : _args( args ), _ID( ID )
 		{
 			_actionNum = actionNumber;
 			if ( args.hasArgument("verbose") )
@@ -78,18 +78,21 @@ namespace MultiBoost {
 		
 		// 2 or 3
 		virtual void setActionNumber( int actionNumber ) { _actionNum = actionNumber; }
+		
+		virtual const string& getID() { return _ID; }
 	protected:
 		int _actionNum;
 		const nor_utils::Args& _args;
 		string _baseLearnerName;
 		int _verbose;
+		const string _ID;
 	};
 	//-------------------------------------------------------------------
 	//-------------------------------------------------------------------
 	class RandomPolicy : public GenericClassificationBasedPolicy
 	{
 	public:
-		RandomPolicy(const nor_utils::Args& args, const int actionNumber ) : GenericClassificationBasedPolicy(args, actionNumber ) {}
+		RandomPolicy(const nor_utils::Args& args, const int actionNumber ) : GenericClassificationBasedPolicy(args, actionNumber, "random" ) {}
 		
 		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations ) {}
 		
@@ -123,15 +126,35 @@ namespace MultiBoost {
 		
 		virtual int load( const string fname, InputData* pData ) {} 
 	};
-	
-	
+	//-------------------------------------------------------------------
+	//-------------------------------------------------------------------
+	class FullEvalPolicy : public GenericClassificationBasedPolicy
+	{
+	public:
+		FullEvalPolicy(const nor_utils::Args& args, const int actionNumber ) : GenericClassificationBasedPolicy(args, actionNumber, "fulleval" ) {}
+		
+		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations ) {}
+		
+		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution )
+		{
+			distribution.resize(_actionNum);
+			fill(distribution.begin(), distribution.end(), 0.0 );
+			distribution[0]=1.0;
+		}
+		
+		virtual int getNextAction( InputData* state ) { return 0; }
+		
+		virtual void save( const string fname, InputData* pData = NULL ) {}
+		
+		virtual int load( const string fname, InputData* pData ) {} 
+	};		
 	//-------------------------------------------------------------------
 	//-------------------------------------------------------------------
 	class AdaBoostPolicy : public GenericClassificationBasedPolicy
 	{		
 	public:
-		AdaBoostPolicy(const nor_utils::Args& args, const int actionNumber) : GenericClassificationBasedPolicy(args,actionNumber) {}
-		AdaBoostPolicy(const nor_utils::Args& args, const int actionNumber, vector<BaseLearner*>& baselearners ) : GenericClassificationBasedPolicy(args,actionNumber) 
+		AdaBoostPolicy(const nor_utils::Args& args, const int actionNumber) : GenericClassificationBasedPolicy(args,actionNumber, "adaboost" ) {}
+		AdaBoostPolicy(const nor_utils::Args& args, const int actionNumber, vector<BaseLearner*>& baselearners ) : GenericClassificationBasedPolicy(args,actionNumber, "adaboost") 
 		{
 			_weakhyp.resize(baselearners.size());
 			copy(baselearners.begin(), baselearners.end(), _weakhyp.begin() );
@@ -148,17 +171,20 @@ namespace MultiBoost {
 	protected:
 		vector<BaseLearner*> _weakhyp;		
 	};
+	
+	
+	
 	//-------------------------------------------------------------------
 	//-------------------------------------------------------------------		
 	class AdaBoostPolicyArray : public GenericClassificationBasedPolicy
 	{		
 	public:
 		AdaBoostPolicyArray(const nor_utils::Args& args, const AlphaReal alpha, const int actionNumber ) : 
-				GenericClassificationBasedPolicy(args,actionNumber), _coefficients(0), _policies( 0 ), _alpha(alpha) 
+				GenericClassificationBasedPolicy(args,actionNumber, "adaboostarray"), _coefficients(0), _policies( 0 ), _alpha(alpha) 
 		{
-			//GenericClassificationBasedPolicy* randomPolicy = new RandomPolicy(args,actionNumber);
-			//_policies.push_back( randomPolicy );
-			//_coefficients.push_back( 1.0 );
+			GenericClassificationBasedPolicy* fullEvalPolicy = new FullEvalPolicy(args,actionNumber);
+			_policies.push_back( fullEvalPolicy );
+			_coefficients.push_back( 1.0 );
 		}
 		
 		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations );

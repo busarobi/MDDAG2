@@ -198,7 +198,7 @@ namespace MultiBoost {
 		for ( int i=_policies.size()-1; 0<=i; --i )
 		{
 			if (_coefficients[i] < 0.01 ) break;
-			if ((_policies.size()-i)>=5) break;
+			//if ((_policies.size()-i)>=5) break;
 			
 			_policies[i]->getDistribution( state, tmpDistribution );
 			for( int l=0; l < _actionNum; ++l )
@@ -239,7 +239,7 @@ namespace MultiBoost {
 		
 		Serialization ss(fname, false );
 		ss.writeCascadeHeader(_baseLearnerName);
-		for (int i=0; i < policyNum; ++i )
+		for (int i=1; i < policyNum; ++i )
 		{
 			AdaBoostPolicy* currentpolicy = dynamic_cast<AdaBoostPolicy*>(_policies[i]);
 			
@@ -287,10 +287,19 @@ namespace MultiBoost {
 		
 		// Where to put the weak hypotheses
 		vector<vector<BaseLearner*> > weakHypotheses(0);
-		        
+		vector<AlphaReal> coefficients;        
 		// loads them
 		//us.loadHypotheses(shypFileName, weakHypotheses, pData);
-		us.loadCascadeHypotheses(fname, weakHypotheses, _coefficients, pData);
+		us.loadCascadeHypotheses(fname, weakHypotheses, coefficients, pData);
+		
+		
+		_coefficients.resize(coefficients.size()+1);
+		fill(_coefficients.begin(), _coefficients.end(), 1.0 );
+		
+		for ( int i=_coefficients.size()-2; i >= 0; --i)
+		{
+			_coefficients[i] = _coefficients[i+1]*_alpha;
+		}
 		
 		for ( int i=0; i < weakHypotheses.size(); ++i)
 		{
