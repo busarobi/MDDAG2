@@ -673,6 +673,8 @@ namespace MultiBoost {
 						rolloutStream << endl;
 					}
 					break;				
+				case RL_FULL:					
+					
 				default:
 					break;
 			}
@@ -702,7 +704,10 @@ namespace MultiBoost {
 		//			{
 		//				weights[i] = weights[i] - maxVal;
 		//			}
-		//		}		
+		//		}	
+		
+		if (weights.size() <= 2 ) return weights[0];
+		
 		AlphaReal minValue = numeric_limits<AlphaReal>::max();
 		AlphaReal maxValue = -numeric_limits<AlphaReal>::max();
 		AlphaReal sumWeight = 0.0;

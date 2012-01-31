@@ -107,7 +107,7 @@ namespace MultiBoost {
 		AdaBoostMHLearner* sHypothesis = new AdaBoostMHLearner();
 		sHypothesis->run(_args, pTrainingData, baseLearnerName, numIterations, _weakhyp );
 		delete sHypothesis;		
-		_actionNum = pTrainingData->getNumClasses();
+		//_actionNum = pTrainingData->getNumClasses();
 		_baseLearnerName = baseLearnerName;
 		
 		const int numExamples = pTrainingData->getNumExamples();
@@ -177,7 +177,7 @@ namespace MultiBoost {
 	//------------------------------------------------------------------------------------------
 	AlphaReal AdaBoostPolicyArray::trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations )
 	{
-		_actionNum = pTrainingData->getNumClasses();
+		//_actionNum = pTrainingData->getNumClasses();
 		_baseLearnerName = baseLearnerName;
 		
 		AdaBoostPolicy* abpolicy = new AdaBoostPolicy( _args, _actionNum );

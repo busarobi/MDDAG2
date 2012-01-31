@@ -55,7 +55,8 @@ using namespace std;
 namespace MultiBoost {
 	enum eRolloutType {
 		RL_MONTECARLO,
-		RL_SZATYMAZ
+		RL_SZATYMAZ,
+		RL_FULL
 	};
 	
 	enum eRewardType {
