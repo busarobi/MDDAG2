@@ -908,15 +908,16 @@ namespace MultiBoost {
 	// -------------------------------------------------------------------------
 	AlphaReal MDDAGLearner::getNormalizedScores( vector<AlphaReal>& scores, vector<AlphaReal>& normalizedScores, int iter )
 	{
+		normalizedScores.resize(scores.size());
 		if (iter==0) 
-		{
-			normalizedScores.resize(scores.size());
+		{			
 			fill( normalizedScores.begin(), normalizedScores.end(), 0.0 );
 			return 0.0;
 		}
 		if (scores.size()<=2)
-		{
+		{			
 			copy( scores.begin(), scores.end(), normalizedScores.begin() );
+			return 0.0;
 		}
 		
 		const int classNum = scores.size();
