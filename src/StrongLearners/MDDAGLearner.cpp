@@ -410,6 +410,9 @@ namespace MultiBoost {
 		vector< vector<AlphaReal> > margins(_shypIter+1);		
 		vector<AlphaReal> path(_shypIter);	
 		vector<AlphaReal>::iterator pIt;
+
+		vector<int> labelDistribution(_actionNumber,0);
+		int rolloutSize=0;
 		
 		int usedClassifier;
 		int randIndex;
@@ -700,11 +703,37 @@ namespace MultiBoost {
 						
 						rolloutStream << "}" << " # " << rlI << " " << randIndex << " " << randWeakLearnerIndex ;
 						rolloutStream << endl;
+						
+						for( int a=0; a<_actionNumber; ++a)
+						{
+							if (estimatedRewardsForActions[a]>0) {
+								labelDistribution[a]++;
+							}
+						}
+						
+						rolloutSize++;
 					}
 					break;				
 				default:
 					break;
 			}
+		}
+		
+		
+		if (_verbose)
+		{
+			int sumPosLabels=0;
+			for( int a=0; a<_actionNumber; ++a)
+			{
+				sumPosLabels += labelDistribution[a];
+			}			
+			for( int a=0; a<_actionNumber; ++a)
+			{			
+				AlphaReal dist = static_cast<AlphaReal>(labelDistribution[a]) / static_cast<AlphaReal>(sumPosLabels);
+				cout << "Action (" << a << "):" << dist <<endl;
+			}
+			cout << "-->Num of rollout instance: " << rolloutSize << endl; 
+			cout << "-->Num. of pos. labels:     " << sumPosLabels << endl;
 		}
 		
 		rolloutStream.close();
