@@ -126,14 +126,18 @@ namespace MultiBoost {
 			_rolloutType = RL_MONTECARLO;
 		else if ( rollouttype.compare( "szatymaz" ) == 0 )
 			_rolloutType = RL_SZATYMAZ;
+		else if ( rollouttype.compare( "full" ) == 0 )
+			_rolloutType = RL_FULL;
 		else {
 			//cerr << "Unknown update rule in ProductLearnerUCT (set to default [logedge]" << endl;
-			_rolloutType = RL_MONTECARLO;
+			_rolloutType = RL_SZATYMAZ;
 		}
 		
 		if ( args.hasArgument( "outdir" ) )
 			args.getValue("outdir", 0, _outDir );   
-
+		
+		if ( args.hasArgument( "outtrainingerror" ) )
+			_outputTrainingError = true;
 		
 		string succesrewardtype = "";
 		if ( args.hasArgument( "succrewardtype" ) )
@@ -142,9 +146,8 @@ namespace MultiBoost {
 			cerr << "No reward type is given, set to zeroone" << endl;
 			succesrewardtype = "e01";
 		}
-
 		
-		
+				
 		if ( succesrewardtype.compare( "exp" ) == 0 )
 			_rewardtype = RW_EXPLOSS;
 		else if ( succesrewardtype.compare( "e01" ) == 0 )
@@ -163,7 +166,7 @@ namespace MultiBoost {
 	{
 		// load the arguments
 		this->getArgs(args);
-				
+		
 		if ( !_outputInfoFile.empty() ) 
 		{
 			
@@ -177,7 +180,7 @@ namespace MultiBoost {
 				exit(1);
 			}			
 		}
-				
+		
 		// get the registered weak learner (type from name)
 		_inBaseLearnerName = UnSerialization::getWeakLearnerName(_inshypFileName);		
 		BaseLearner*  pWeakHypothesisSource = BaseLearner::RegisteredLearners().getLearner(_inBaseLearnerName);
@@ -264,7 +267,7 @@ namespace MultiBoost {
 		//cout << "Before serialization" << endl;
 		// reload the previously found weak learners if -resume is set. 
 		// otherwise just return 0
-						
+		
 		if (_verbose == 1)
 			cout << "Learning in progress..." << endl;
 		
@@ -284,49 +287,49 @@ namespace MultiBoost {
 		string rolloutDataFile;
 		char tmpFileNameChar[4096];
 		string tmpFileName;
-//		cout << "********************************* 0. **********************************" << endl;
-//		
-//		sprintf( tmpFileNameChar, "rollout_%d.txt", 0 );
-//		rolloutDataFile = _outDir + tmpFileNameChar;
-//		
-//		
-//		
-//		if (_verbose>0)
-//			cout << "Rollout..." << endl;
-//		rollout( pTrainingData, rolloutDataFile );
-//		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
-//		
-//		//train policy 
-//		policyError = _policy->trainpolicy( rolloutTrainingData, _baseLearnerName, _trainingIter );		
-//		
-//		// save policy 
-//		sprintf( tmpFileNameChar, "shyp_%d.xml", 0 );
-//		tmpFileName = _outDir + tmpFileNameChar;		
-//		_policy->save(tmpFileName,rolloutTrainingData);
-//		
-//		if (_verbose>0)
-//			cout << "Classifying training." << endl;
-//		sprintf( outfilename, "outtrain_%d.txt", 0 );
-//		tmpFileName = _outDir + outfilename;
-//		//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain );
-//		
-//		if (_verbose>0)
-//			cout << "Classifying test." << endl;
-//		sprintf( outfilename, "outtest_%d.txt", 0 );
-//		tmpFileName = _outDir + outfilename;
-//		getErrorRate(pTestData,tmpFileName.c_str(), policyResultTest);
-//		
-//		_outStream << "0\t" << policyError; 
-//		_outStream << "\t" << trainError << "\t" << policyResultTrain.errorRate << "\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTrain.avgReward;
-//		_outStream << "\t" << testError << "\t" << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
-//		_outStream << endl << flush;
-//		
-//		cout << "Policy training error:\t" << policyError << endl;
-//		cout << "Error (train/test):\t" << policyResultTrain.errorRate << "\t" << policyResultTest.errorRate << endl;
-//		cout << "Num of evaluated BL (train/test):\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTest.numOfEvaluatedClassifier << endl << flush;
-//		cout << "result filename: " << outfilename << endl;
-//		
-//		delete rolloutTrainingData;
+		//		cout << "********************************* 0. **********************************" << endl;
+		//		
+		//		sprintf( tmpFileNameChar, "rollout_%d.txt", 0 );
+		//		rolloutDataFile = _outDir + tmpFileNameChar;
+		//		
+		//		
+		//		
+		//		if (_verbose>0)
+		//			cout << "Rollout..." << endl;
+		//		rollout( pTrainingData, rolloutDataFile );
+		//		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
+		//		
+		//		//train policy 
+		//		policyError = _policy->trainpolicy( rolloutTrainingData, _baseLearnerName, _trainingIter );		
+		//		
+		//		// save policy 
+		//		sprintf( tmpFileNameChar, "shyp_%d.xml", 0 );
+		//		tmpFileName = _outDir + tmpFileNameChar;		
+		//		_policy->save(tmpFileName,rolloutTrainingData);
+		//		
+		//		if (_verbose>0)
+		//			cout << "Classifying training." << endl;
+		//		sprintf( outfilename, "outtrain_%d.txt", 0 );
+		//		tmpFileName = _outDir + outfilename;
+		//		//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain );
+		//		
+		//		if (_verbose>0)
+		//			cout << "Classifying test." << endl;
+		//		sprintf( outfilename, "outtest_%d.txt", 0 );
+		//		tmpFileName = _outDir + outfilename;
+		//		getErrorRate(pTestData,tmpFileName.c_str(), policyResultTest);
+		//		
+		//		_outStream << "0\t" << policyError; 
+		//		_outStream << "\t" << trainError << "\t" << policyResultTrain.errorRate << "\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTrain.avgReward;
+		//		_outStream << "\t" << testError << "\t" << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
+		//		_outStream << endl << flush;
+		//		
+		//		cout << "Policy training error:\t" << policyError << endl;
+		//		cout << "Error (train/test):\t" << policyResultTrain.errorRate << "\t" << policyResultTest.errorRate << endl;
+		//		cout << "Num of evaluated BL (train/test):\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTest.numOfEvaluatedClassifier << endl << flush;
+		//		cout << "result filename: " << outfilename << endl;
+		//		
+		//		delete rolloutTrainingData;
 		
 		for (int t = 0; t < _numIterations; ++t)
 		{
@@ -341,7 +344,7 @@ namespace MultiBoost {
 				cout << "Rollout..." << endl;
 			sprintf( tmpFileNameChar, "rollout_%d.txt", t+1 );
 			rolloutDataFile = _outDir + tmpFileNameChar;
-
+			
 			rollout( pTrainingData, rolloutDataFile, _policy );
 			rolloutTrainingData = getRolloutData( args, rolloutDataFile );						
 			
@@ -357,7 +360,9 @@ namespace MultiBoost {
 				cout << "Classifying training." << endl;			
 			sprintf( outfilename, "outtrain_%d.txt", t+1 );
 			tmpFileName = _outDir + outfilename;
-			//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+
+			if (_outputTrainingError)
+				getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
 			
 			if (_verbose>0)
 				cout << "Classifying test." << endl;			
@@ -446,9 +451,17 @@ namespace MultiBoost {
 		} if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
 		{
 			genHeader(rolloutStream, numClasses+3);
-		}
+		}						
 		
-		
+		// full rollout
+		int currentExample = 0;
+		int currentWeakLearner = -1;
+		if (_rolloutType==RL_FULL)
+		{
+			if (_verbose>1)
+				cout << "WARNING: full rollout is used, the rollout set size is " << numExamples * _shypIter << endl;
+			_rollouts = numExamples * _shypIter;			
+		}		
 		
 		for( int rlI = 0; rlI < _rollouts; ++rlI )
 		{			
@@ -537,9 +550,23 @@ namespace MultiBoost {
 					
 					break;
 				case RL_SZATYMAZ:
-					randIndex = rand() % numExamples;								
-					randWeakLearnerIndex = rand() % _shypIter;								
-					
+				case RL_FULL:
+					if (_rolloutType==RL_FULL) {
+						currentWeakLearner++;
+						if (currentWeakLearner>=(_shypIter-1))
+						{
+							currentExample++;
+							currentWeakLearner=0;
+						}
+						
+						if (currentExample>=numExamples) break;
+
+						randIndex = currentExample;
+						randWeakLearnerIndex = currentWeakLearner;
+					} else {
+						randIndex = rand() % numExamples;								
+						randWeakLearnerIndex = rand() % _shypIter;								
+					}					
 					
 					fill(margins[0].begin(), margins[0].end(), 0.0 );
 					path.resize(0);
@@ -551,7 +578,9 @@ namespace MultiBoost {
 						if (policy==NULL)
 							action = rand() % 2;
 						else {
-							float r = (float)rand() / RAND_MAX;
+							// random \psilon exploration
+							//float r = (float)rand() / RAND_MAX;
+							float r=1.0;
 							if (r<0.0)
 							{
 								action = rand() % 2;
@@ -652,7 +681,7 @@ namespace MultiBoost {
 					}
 					
 					getStateVector( state, randWeakLearnerIndex, margins[randWeakLearnerIndex+1] );
-										
+					
 					
 					if (normalizeWeights( estimatedRewardsForActions )) 
 					{
@@ -662,19 +691,17 @@ namespace MultiBoost {
 							rolloutStream << state[j] << ",";
 						}
 						
-					
+						
 						rolloutStream << "{ ";
 						for( int a=0; a<_actionNumber; ++a)
 						{							
 							rolloutStream << a << " " << estimatedRewardsForActions[a] << " "; 
 						}
-					
+						
 						rolloutStream << "}" << " # " << rlI << " " << randIndex << " " << randWeakLearnerIndex ;
 						rolloutStream << endl;
 					}
 					break;				
-				case RL_FULL:					
-					
 				default:
 					break;
 			}
@@ -754,7 +781,7 @@ namespace MultiBoost {
 		
 		Example& e = stateData->getExampleReference(0);
 		vector<FeatureReal>& state = e.getValues();
-
+		
 		state.resize(classNum);
 		AlphaReal sumReward = 0.0;
 		
@@ -873,7 +900,7 @@ namespace MultiBoost {
 			int classNum = margins.size();
 			AlphaReal sumOfPosterios = 0.0;
 			vector<AlphaReal> posteriors( classNum );
-
+			
 			sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
 			
 			state.resize(classNum+4);
@@ -933,10 +960,10 @@ namespace MultiBoost {
 			for ( int i=0; i<classNum; ++i ) 
 			{
 				normalizedScores[i] /= sumOfMargins;		
-//				if ( posteriors[i] != posteriors[i])
-//				{
-//					cout << "NaN" << endl;
-//				}
+				//				if ( posteriors[i] != posteriors[i])
+				//				{
+				//					cout << "NaN" << endl;
+				//				}
 			}
 			
 		}
@@ -971,7 +998,7 @@ namespace MultiBoost {
 				}
 				
 				if (allZero==1) return 0.0;//return -1.0;
-
+				
 				maxNegClass = -numeric_limits<AlphaReal>::max();
 				minPosClass = numeric_limits<AlphaReal>::max();
 				
@@ -993,20 +1020,20 @@ namespace MultiBoost {
 				else 
 					reward=1.0;
 				
-//				for(l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
-//				{
-//					if (margins[l]>maxMargin)
-//					{
-//						maxMargin=margins[l];
-//						forecastlabel=l;
-//					}										
-//				}
-//				if (labels[forecastlabel].y>0)
-//				{
-//					reward=1.0;
-//				} else {
-//					reward=0.0;
-//				}
+				//				for(l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
+				//				{
+				//					if (margins[l]>maxMargin)
+				//					{
+				//						maxMargin=margins[l];
+				//						forecastlabel=l;
+				//					}										
+				//				}
+				//				if (labels[forecastlabel].y>0)
+				//				{
+				//					reward=1.0;
+				//				} else {
+				//					reward=0.0;
+				//				}
 				
 				break;
 			case RW_EXPLOSS:
@@ -1043,18 +1070,18 @@ namespace MultiBoost {
 	
 	void MDDAGLearner::classify(const nor_utils::Args& args)
 	{
-//		MDDAGClassifier classifier(args, _verbose);
-//		
-//		// -test <dataFile> <shypFile>
-//		string testFileName = args.getValue<string>("test", 0);
-//		string shypFileName = args.getValue<string>("test", 1);
-//		int numIterations = args.getValue<int>("test", 2);
-//		
-//		string outResFileName;
-//		if ( args.getNumValues("test") > 3 )
-//			args.getValue("test", 3, outResFileName);
-//		
-//		classifier.run(testFileName, shypFileName, numIterations, outResFileName);
+		//		MDDAGClassifier classifier(args, _verbose);
+		//		
+		//		// -test <dataFile> <shypFile>
+		//		string testFileName = args.getValue<string>("test", 0);
+		//		string shypFileName = args.getValue<string>("test", 1);
+		//		int numIterations = args.getValue<int>("test", 2);
+		//		
+		//		string outResFileName;
+		//		if ( args.getNumValues("test") > 3 )
+		//			args.getValue("test", 3, outResFileName);
+		//		
+		//		classifier.run(testFileName, shypFileName, numIterations, outResFileName);
 	}
 	
 	// -------------------------------------------------------------------------
@@ -1069,13 +1096,13 @@ namespace MultiBoost {
 	{		
 		BaseLearner*  pWeakHypothesisSource = BaseLearner::RegisteredLearners().getLearner(_baseLearnerName);
 		pWeakHypothesisSource->initLearningOptions(args);
-				
+		
 		InputData* data = pWeakHypothesisSource->createInputData();
 		data->initOptions(args);
 		data->setInitWeighting( WIT_PROP_ONLY );
 		
 		data->load(fname, IT_TRAIN, _verbose);
-
+		
 		return data;
 	}
 	
@@ -1086,7 +1113,7 @@ namespace MultiBoost {
 	{		
 		// load the arguments
 		this->getArgs(args);
-
+		
 		int numofargs = args.getNumValues( "posteriors" );
 		// -posteriors <dataFile> <shypFile> <outFile> <numIters>
 		string testFileName = args.getValue<string>("posteriors", 0);
@@ -1140,13 +1167,13 @@ namespace MultiBoost {
 		char tmpFileNameChar[4096];
 		string rolloutDataFile;
 		
-						
+		
 		// load the policy 
 		_rollouts = 100;
 		
 		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
 		InputData* rolloutTrainingData;
-
+		
 		if (_verbose>0)
 			cout << "Rollout...";
 		
@@ -1161,12 +1188,12 @@ namespace MultiBoost {
 		
 		if (_verbose>0)
 			cout << "Loading policy from " << policyShypFileName << "...";
-				
+		
 		_policy->load(policyShypFileName, rolloutTrainingData);
-
+		
 		if (_verbose>0)
 			cout << "Done." << endl;
-
+		
 		//////////////////////////////////////////
 		// posteriors
 		//////////////////////////////////////////	
@@ -1188,7 +1215,7 @@ namespace MultiBoost {
 		_outStream << "Error" << "\t" << "Evaluated" << "\t" << "Avg. Rew." << "\t" << endl;
 		_outStream << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
 		_outStream << endl << flush;
-
+		
 		cout << "Error" << "\t" << "Evaluated" << "\t" << "Avg. Rew." << "\t" << endl;
 		cout << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
 		cout << endl << flush;

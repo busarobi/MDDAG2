@@ -144,7 +144,7 @@ namespace MultiBoost {
 		calculateEdgeImprovement( parentNode );		
 		
 		// insert the root
-		if ( parentNode._edgeImprovement < 0.0 ) // the constant is the best, in this case the treelearner is equivalent to the constant learner
+		if ( parentNode._edgeImprovement <= 0.0 ) // the constant is the best, in this case the treelearner is equivalent to the constant learner
 		{
 			_baseLearners.push_back( parentNode._constantLearner );			
 			_idxPairs.push_back( tmpVector );

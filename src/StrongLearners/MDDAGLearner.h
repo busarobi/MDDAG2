@@ -88,7 +88,8 @@ namespace MultiBoost {
         MDDAGLearner()
         : _numIterations(0), _verbose(1), _withConstantLearner(true), _rollouts(10),
         _resumeShypFileName(""), _outputInfoFile(""), _trainingIter(1000), _inshypFileName(""),
-		_rolloutType( RL_MONTECARLO ), _actionNumber(2), _rewardtype(RW_ZEROONE), _beta(0.1), _policy(NULL), _outDir("") {}
+		_rolloutType( RL_MONTECARLO ), _actionNumber(2), _rewardtype(RW_ZEROONE), _beta(0.1), _policy(NULL), _outDir(""),
+		_outputTrainingError(false) {}
 		
         /**
          * Start the learning process.
@@ -216,6 +217,7 @@ namespace MultiBoost {
 		
 		GenericClassificationBasedPolicy* _policy;
 		string _outDir;
+		bool _outputTrainingError;
 	};		
 	// ------------------------------------------------------------------------------
 	// ------------------------------------------------------------------------------
