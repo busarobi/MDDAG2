@@ -37,8 +37,10 @@
 #include "WeakLearners/HaarSingleStumpLearner.h"
 #include "WeakLearners/SingleStumpLearner.h"
 
-
 #include "Classifiers/MDDAGClassifier.h"
+
+
+#define _ADD_SUMOFSCORES_TO_STATESPACE_
 
 namespace MultiBoost {
 	// -----------------------------------------------------------------------------------
@@ -450,7 +452,11 @@ namespace MultiBoost {
 		// gen header
 		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
 		{
+#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
+			genHeader(rolloutStream, numClasses+5);
+#else
 			genHeader(rolloutStream, numClasses+4);
+#endif
 		} if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
 		{
 			genHeader(rolloutStream, numClasses+3);
@@ -926,13 +932,20 @@ namespace MultiBoost {
 		
 		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) == 0)
 		{									
+
 			int classNum = margins.size();
 			AlphaReal sumOfPosterios = 0.0;
 			vector<AlphaReal> posteriors( classNum );
 			
 			sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
-			
-			state.resize(classNum+4);
+
+#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
+			state.resize(classNum+5);
+			state[classNum+4] = sumOfPosterios; 
+#else			
+			state.resize(classNum+4);			
+#endif			
+									
 			for(int l=0; l<classNum; ++l )
 				state[l] = posteriors[l];					
 			
@@ -943,8 +956,6 @@ namespace MultiBoost {
 			state[classNum+1] = rect.y;
 			state[classNum+2] = rect.width; 
 			state[classNum+3] =  rect.height;
-			//state[classNum+4] = iter; 
-			//state[classNum+4] = sumOfPosterios; 
 		} else if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) == 0)
 		{
 			int classNum = margins.size();
