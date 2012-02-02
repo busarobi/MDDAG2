@@ -137,7 +137,7 @@ namespace MultiBoost {
 									vector< ExampleResults* >& results );
         
 		virtual void getClassError( InputData* pData, const vector<ExampleResults*>& results, AlphaReal& classError);		
-		void rollout( InputData* pData, const string fname, GenericClassificationBasedPolicy* policy = NULL );
+		void rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL );
 		
 		AlphaReal getReward( vector<AlphaReal>& margins, InputData* pData, int index );
 				
@@ -156,7 +156,7 @@ namespace MultiBoost {
         void getArgs(const nor_utils::Args& args);
         
         
-		InputData* getRolloutData( const nor_utils::Args& args, const string fname  );
+		InputData* getRolloutData( const nor_utils::Args& args, const string fname );
         /**
          * Resume the weak learner list.
          * \return The current iteration number. 0 if not -resume option has been called

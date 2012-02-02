@@ -341,13 +341,18 @@ namespace MultiBoost {
 			//_trainingIter += 10;
 			cout << "Policy iteration: " << _trainingIter << endl;
 			
-			
+			// do rollout
 			if (_verbose>0)
 				cout << "Rollout..." << endl;
 			sprintf( tmpFileNameChar, "rollout_%d.txt", t+1 );
 			rolloutDataFile = _outDir + tmpFileNameChar;
+			if (t==0)
+				// the first rollout is fast, thus we generate a lot of rollout instance
+				rollout( pTrainingData, rolloutDataFile, 10 * _rollouts, _policy );
+			else 
+				rollout( pTrainingData, rolloutDataFile, _rollouts, _policy );
 			
-			rollout( pTrainingData, rolloutDataFile, _policy );
+
 			rolloutTrainingData = getRolloutData( args, rolloutDataFile );						
 			
 			// train policy
@@ -404,7 +409,7 @@ namespace MultiBoost {
 	}	
 	
 	// -------------------------------------------------------------------------
-	void MDDAGLearner::rollout( InputData* pData, const string fname, GenericClassificationBasedPolicy* policy )
+	void MDDAGLearner::rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy )
 	{
 		const int numExamples = pData->getNumExamples();
 		const int numClasses = pData->getNumClasses();
@@ -469,10 +474,10 @@ namespace MultiBoost {
 		{
 			if (_verbose>1)
 				cout << "WARNING: full rollout is used, the rollout set size is " << numExamples * _shypIter << endl;
-			_rollouts = numExamples * _shypIter;			
+			rsize = numExamples * _shypIter;			
 		}		
 		
-		for( int rlI = 0; rlI < _rollouts; ++rlI )
+		for( int rlI = 0; rlI < rsize; ++rlI )
 		{			
 			
 			switch (_rolloutType) {
@@ -1209,8 +1214,7 @@ namespace MultiBoost {
 		
 		
 		// load the policy 
-		_rollouts = 100;
-		
+
 		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
 		InputData* rolloutTrainingData;
 		
@@ -1220,7 +1224,8 @@ namespace MultiBoost {
 		sprintf( tmpFileNameChar, "tmp.txt" );
 		rolloutDataFile = _outDir + tmpFileNameChar;
 		
-		rollout( pTestData, rolloutDataFile );
+		// because of the class map
+		rollout( pTestData, rolloutDataFile, 100 );
 		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
 		
 		if (_verbose>0)
