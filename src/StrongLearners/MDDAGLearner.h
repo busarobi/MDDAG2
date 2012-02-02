@@ -157,23 +157,13 @@ namespace MultiBoost {
         
         
 		InputData* getRolloutData( const nor_utils::Args& args, const string fname );
-        /**
-         * Resume the weak learner list.
-         * \return The current iteration number. 0 if not -resume option has been called
-         * \param pTrainingData The pointer to the training data, needed for classMap, enumMaps.
-         * \date 21/12/2005
-         * \see resumeProcess
-         * \remark resumeProcess must be called too!
-         */
-        int resumeWeakLearners(InputData* pTrainingData);
         
         /**
          * Resume the training using the features in _resumeShypFileName if the
          * option -resume has been specified.
          * \date 21/12/2005
          */
-        void resumeProcess(Serialization& ss, InputData* pTrainingData, InputData* pTestData, 
-                           OutputInfo* pOutInfo);
+        int resumeProcess(const nor_utils::Args& args, InputData* pTestData);
         
         vector<BaseLearner*>  _foundHypotheses; //!< The list of the hypotheses found.
         vector<AlphaReal>	  _sumAlphas;

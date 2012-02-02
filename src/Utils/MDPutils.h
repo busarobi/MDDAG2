@@ -193,6 +193,7 @@ namespace MultiBoost {
 		
 		virtual void save( const string fname, InputData* pData = NULL );
 		virtual int  load( const string fname, InputData* pData );
+		virtual int  getNumOfPolicies() { return _policies.size(); }
 		
 	protected:
 		vector< GenericClassificationBasedPolicy* >	_policies;

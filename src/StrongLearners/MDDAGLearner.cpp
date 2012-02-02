@@ -159,6 +159,10 @@ namespace MultiBoost {
 			exit(-1);
 		}
 		
+		// Set the filename of the policy file in the case resume is
+		// called
+		if ( args.hasArgument("resume") )
+			args.getValue("resume", 0, _resumeShypFileName);
 		
 	}
 	
@@ -282,8 +286,8 @@ namespace MultiBoost {
 		
 		InputData* rolloutTrainingData;
 		
-		// create policy 
-		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
+		// create policy 		
+		int startingIter = resumeProcess(args, pTrainingData );
 		
 		char outfilename[4096];
 		string rolloutDataFile;
@@ -333,7 +337,7 @@ namespace MultiBoost {
 		//		
 		//		delete rolloutTrainingData;
 		
-		for (int t = 0; t < _numIterations; ++t)
+		for (int t = startingIter; t < _numIterations; ++t)
 		{
 			cout << "********************************* " << (t+1) << ". **********************************" << endl;
 			
@@ -1268,60 +1272,42 @@ namespace MultiBoost {
 		
 		_outStream.close();
 	}
-	// -------------------------------------------------------------------------
-	
-	int MDDAGLearner::resumeWeakLearners(InputData* pTrainingData)
-	{
-		if (_resumeShypFileName.empty())
-			return 0;
-		
-		if (_verbose > 0)
-			cout << "Reloading strong hypothesis file <" << _resumeShypFileName << ">.." << flush;
-		
-		// The class that loads the weak hypotheses
-		UnSerialization us;
-		
-		// loads them
-		us.loadHypotheses(_resumeShypFileName, _foundHypotheses, pTrainingData, _verbose);
-		
-		if (_verbose > 0)
-			cout << "Done!" << endl;
-		
-		// return the number of iterations found
-		return static_cast<int>( _foundHypotheses.size() );
-	}
 	
 	// -------------------------------------------------------------------------
 	
-	void MDDAGLearner::resumeProcess(Serialization& ss, 
-									 InputData* pTrainingData, InputData* pTestData, 
-									 OutputInfo* pOutInfo)
+	int MDDAGLearner::resumeProcess(const nor_utils::Args& args, InputData* pTestData)
 	{
+		int numPolicies = 0;
+		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
 		
 		if (_resumeShypFileName.empty())
-			return;
+			return numPolicies;
+
+		char tmpFileNameChar[4096];
+		string rolloutDataFile;
+
+		InputData* rolloutTrainingData;		
+		sprintf( tmpFileNameChar, "tmp.txt" );
+		rolloutDataFile = _outDir + tmpFileNameChar;
 		
-		vector<BaseLearner*>::iterator it;
-		int t;
+		// because of the class map
+		rollout( pTestData, rolloutDataFile, 100 );
+		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
 		
-		// rebuild the new strong hypothesis file
-		for (it = _foundHypotheses.begin(), t = 0; it != _foundHypotheses.end(); ++it, ++t)
-		{
-			BaseLearner* pWeakHypothesis = *it;
-			
-			// append the current weak learner to strong hypothesis file,
-			ss.appendHypothesis(t, pWeakHypothesis);
-		}
+		if (_verbose>0)
+			cout << "Loading policy from " << _resumeShypFileName << "...";
 		
-		const int numIters = static_cast<int>(_foundHypotheses.size());
-		const int step = numIters < 5 ? 1 : numIters / 5;
+		_policy->load(_resumeShypFileName, rolloutTrainingData);
 		
-		if (_verbose > 0)
-			cout << "Resuming up to iteration " << _foundHypotheses.size() - 1 << ": 0%." << flush;
-		
+		numPolicies = static_cast<AdaBoostPolicyArray*>(_policy)->getNumOfPolicies();
 		
 		if (_verbose > 0)
 			cout << "Done!" << endl;
+				
+		if (_verbose > 0)
+			cout << "Number of policies" << numPolicies << endl << flush;
+
+		return numPolicies;
 		
 	}
 	
