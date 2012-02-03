@@ -56,7 +56,8 @@ namespace MultiBoost {
 	enum eRolloutType {
 		RL_MONTECARLO,
 		RL_SZATYMAZ,
-		RL_FULL
+		RL_FULL,
+		RL_ONESHOT
 	};
 	
 	enum eRewardType {

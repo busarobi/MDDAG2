@@ -130,6 +130,8 @@ namespace MultiBoost {
 			_rolloutType = RL_SZATYMAZ;
 		else if ( rollouttype.compare( "full" ) == 0 )
 			_rolloutType = RL_FULL;
+		else if ( rollouttype.compare( "oneshot" ) == 0 )
+			_rolloutType = RL_ONESHOT;
 		else {
 			//cerr << "Unknown update rule in ProductLearnerUCT (set to default [logedge]" << endl;
 			_rolloutType = RL_SZATYMAZ;
@@ -149,7 +151,7 @@ namespace MultiBoost {
 			succesrewardtype = "e01";
 		}
 		
-				
+		
 		if ( succesrewardtype.compare( "exp" ) == 0 )
 			_rewardtype = RW_EXPLOSS;
 		else if ( succesrewardtype.compare( "e01" ) == 0 )
@@ -356,7 +358,7 @@ namespace MultiBoost {
 			else 
 				rollout( pTrainingData, rolloutDataFile, _rollouts, _policy );
 			
-
+			
 			rolloutTrainingData = getRolloutData( args, rolloutDataFile );						
 			
 			// train policy
@@ -371,7 +373,7 @@ namespace MultiBoost {
 				cout << "Classifying training." << endl;			
 			sprintf( outfilename, "outtrain_%d.txt", t+1 );
 			tmpFileName = _outDir + outfilename;
-
+			
 			if (_outputTrainingError)
 				getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
 			
@@ -421,7 +423,7 @@ namespace MultiBoost {
 		vector< vector<AlphaReal> > margins(_shypIter+1);		
 		vector<AlphaReal> path(_shypIter);	
 		vector<AlphaReal>::iterator pIt;
-
+		
 		vector<int> labelDistribution(_actionNumber,0);
 		int rolloutSize=0;
 		
@@ -431,6 +433,9 @@ namespace MultiBoost {
 		int action;
 		int currentpathsize;
 		int currentNumberOfUsedClassifier;
+		
+		vector<int> randomPermutation;
+		vector<int> randWeakLearnerOrder;
 		
 		AlphaReal finalReward;
 		AlphaReal reward;
@@ -479,6 +484,17 @@ namespace MultiBoost {
 			if (_verbose>1)
 				cout << "WARNING: full rollout is used, the rollout set size is " << numExamples * _shypIter << endl;
 			rsize = numExamples * _shypIter;			
+		}		
+		
+		if (_rolloutType==RL_ONESHOT)
+		{
+			if (_verbose>1)
+				cout << "WARNING: one-shot rollout is used, the rollout set size is at most " << numExamples << endl;
+			rsize = numExamples;			
+			randomPermutation.resize( numExamples );
+			for (int i = 0; i < numExamples; ++i ) randomPermutation[i]=i;
+			random_shuffle( randomPermutation.begin(), randomPermutation.end() );
+			randWeakLearnerOrder.resize(_shypIter);
 		}		
 		
 		for( int rlI = 0; rlI < rsize; ++rlI )
@@ -578,7 +594,7 @@ namespace MultiBoost {
 						}
 						
 						if (currentExample>=numExamples) break;
-
+						
 						randIndex = currentExample;
 						randWeakLearnerIndex = currentWeakLearner;
 					} else {
@@ -728,7 +744,163 @@ namespace MultiBoost {
 						
 						rolloutSize++;
 					}
-					break;				
+					break;
+				case RL_ONESHOT:
+					randIndex = randomPermutation[rlI];					
+					
+					for (int i = 0; i < _shypIter; ++i ) randWeakLearnerOrder[i]=i;
+					random_shuffle( randWeakLearnerOrder.begin(), randWeakLearnerOrder.end() );						
+					
+					for ( int wInd=0; wInd < _shypIter; ++wInd )
+					{
+						randWeakLearnerIndex = randWeakLearnerOrder[wInd];								
+						
+						fill(margins[0].begin(), margins[0].end(), 0.0 );
+						path.resize(0);
+						usedClassifier = 0;
+						
+						for( int t = 0; t < randWeakLearnerIndex; ++t )
+						{
+							// no quit action
+							if (policy==NULL)
+								action = rand() % 2;
+							else {
+								// random \psilon exploration
+								//float r = (float)rand() / RAND_MAX;
+								float r=1.0;
+								if (r<0.0)
+								{
+									action = rand() % 2;
+								} else {															
+									vector<AlphaReal> distribution(_actionNumber);
+									getStateVector( state, t, margins[t] );
+									//vector<FeatureReal>& values = data->getValues(0);
+									//for (int tmpv=0; tmpv < 15; ++tmpv) cout << data->getValue(0,tmpv) << " ";
+									//cout << endl;
+									
+									policy->getExplorationDistribution(data, distribution);
+									
+									if ( nor_utils::is_zero( distribution[0]-distribution[1]))
+										action = rand() % 2;
+									else 
+										(distribution[0]>distribution[1]) ? action=0 : action=1;
+								}
+							}
+							
+							path.push_back( action );
+							
+							if (action==0) //classify
+							{
+								for( int l=0; l < numClasses; ++l)
+								{
+									margins[t+1][l] = margins[t][l] + _foundHypotheses[t]->getAlpha() * _foundHypotheses[t]->classify( pData, randIndex, l );
+								}
+								usedClassifier++;
+							}
+							else if (action==1) //skip
+							{
+								for( int l=0; l < numClasses; ++l)
+									margins[t+1][l] = margins[t][l];							
+							}
+							else if (action==2) //quit
+							{
+								for( int l=0; l < numClasses; ++l)
+									margins[t+1][l] = margins[t][l];
+								break;
+							}
+						}	
+						
+						currentpathsize = path.size();
+						currentNumberOfUsedClassifier = usedClassifier;
+						for( int a=0; a<_actionNumber; ++a )
+						{
+							path.resize(currentpathsize);
+							usedClassifier = currentNumberOfUsedClassifier;
+							for( int t = randWeakLearnerIndex; t < _shypIter; ++t )
+							{
+								if (t == randWeakLearnerIndex)
+								{
+									action=a;
+								} 
+								else 
+								{															
+									if (policy==NULL)
+										action = rand() % _actionNumber;
+									else {			
+										float r = (float)rand() / RAND_MAX;
+										if (r<0.0)
+										{
+											action = rand() % _actionNumber;
+										} else {
+											getStateVector( state, t, margins[t] );							
+											action = policy->getExplorationNextAction( data );							
+										}
+									}
+								}
+								
+								
+								
+								path.push_back( action );
+								
+								if (action==0) //classify
+								{
+									for( int l=0; l < numClasses; ++l)
+									{
+										margins[t+1][l] = margins[t][l] + _foundHypotheses[t]->getAlpha() * _foundHypotheses[t]->classify( pData, randIndex, l );
+									}
+									usedClassifier++;
+								}
+								else if (action==1) //skip
+								{
+									for( int l=0; l < numClasses; ++l)
+										margins[t+1][l] = margins[t][l];							
+								}
+								else if (action==2) //quit
+								{
+									for( int l=0; l < numClasses; ++l)
+										margins[t+1][l] = margins[t][l];
+									break;
+								}
+							}
+							
+							finalReward = getReward(margins[path.size()], pData, randIndex );
+							estimatedRewardsForActions[a] = finalReward - usedClassifier * _beta;
+						}
+						
+						getStateVector( state, randWeakLearnerIndex, margins[randWeakLearnerIndex+1] );
+						
+						
+						if (normalizeWeights( estimatedRewardsForActions )) 
+						{
+							
+							for( int j=0; j<state.size(); ++j )
+							{
+								rolloutStream << state[j] << ",";
+							}
+							
+							
+							rolloutStream << "{ ";
+							for( int a=0; a<_actionNumber; ++a)
+							{							
+								rolloutStream << a << " " << estimatedRewardsForActions[a] << " "; 
+							}
+							
+							rolloutStream << "}" << " # " << rlI << " " << randIndex << " " << randWeakLearnerIndex ;
+							rolloutStream << endl;
+							
+							for( int a=0; a<_actionNumber; ++a)
+							{
+								if (estimatedRewardsForActions[a]>0) {
+									labelDistribution[a]++;
+								}
+							}
+							
+							rolloutSize++;
+							break;
+						}
+					}
+					break;
+					
 				default:
 					break;
 			}
@@ -941,20 +1113,20 @@ namespace MultiBoost {
 		
 		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) == 0)
 		{									
-
+			
 			int classNum = margins.size();
 			AlphaReal sumOfPosterios = 0.0;
 			vector<AlphaReal> posteriors( classNum );
 			
 			sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
-
+			
 #ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
 			state.resize(classNum+5);
 			state[classNum+4] = sumOfPosterios; 
 #else			
 			state.resize(classNum+4);			
 #endif			
-									
+			
 			for(int l=0; l<classNum; ++l )
 				state[l] = posteriors[l];					
 			
@@ -1218,7 +1390,7 @@ namespace MultiBoost {
 		
 		
 		// load the policy 
-
+		
 		_policy = ClassificationBasedPolicyFactory::getPolicyObject(args, _actionNumber);
 		InputData* rolloutTrainingData;
 		
@@ -1282,10 +1454,10 @@ namespace MultiBoost {
 		
 		if (_resumeShypFileName.empty())
 			return numPolicies;
-
+		
 		char tmpFileNameChar[4096];
 		string rolloutDataFile;
-
+		
 		InputData* rolloutTrainingData;		
 		sprintf( tmpFileNameChar, "tmp.txt" );
 		rolloutDataFile = _outDir + tmpFileNameChar;
@@ -1303,10 +1475,10 @@ namespace MultiBoost {
 		
 		if (_verbose > 0)
 			cout << "Done!" << endl;
-				
+		
 		if (_verbose > 0)
 			cout << "Number of policies" << numPolicies << endl << flush;
-
+		
 		return numPolicies;
 		
 	}
