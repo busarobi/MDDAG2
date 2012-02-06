@@ -106,7 +106,7 @@ namespace MultiBoost {
 		void setToZero()
 		{
 			for ( int i = 0; i < _numExamples; ++i ) fill(_margins[i].begin(),_margins[i].end(),0.0);
-			fill( _e01.begin(), _e01.end(), 0.0 );
+			fill( _e01.begin(), _e01.end(), 0 );
 		}
 		//-------------------------------------------------------------------------------------------
 		vector<AlphaReal>& getResultVector( const int i ){ return _margins[i]; }		
