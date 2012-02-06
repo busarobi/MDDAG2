@@ -56,6 +56,7 @@ namespace MultiBoost {
 	enum eRolloutType {
 		RL_MONTECARLO,
 		RL_SZATYMAZ,
+		RL_BADSZATYMAZ,
 		RL_FULL,
 		RL_ONESHOT
 	};
@@ -67,11 +68,124 @@ namespace MultiBoost {
 	
 	class PolicyResult {
 	public:
-		PolicyResult() :numOfEvaluatedClassifier(0.0), errorRate(0.0), avgReward(0.0) {}
-		
+		//-------------------------------------------------------------------------------------------
+		PolicyResult(void ) :numOfEvaluatedClassifier(0.0), errorRate(0.0), avgReward(0.0) {}
+		//-------------------------------------------------------------------------------------------
+		PolicyResult( InputData* pData ) :numOfEvaluatedClassifier(0.0), errorRate(0.0), avgReward(0.0) 
+		{
+			resize( pData);
+		}
+		//-------------------------------------------------------------------------------------------
+		void resize( InputData* pData )
+		{
+			_numExamples = pData->getNumExamples();
+			_numClasses = pData->getNumClasses();			
+			
+			_margins.resize( _numExamples );
+			for ( int i = 0; i < _numExamples; ++i ) _margins[i].resize( _numClasses );
+			
+			_e01.resize( _numExamples );
+			
+			_labels.resize( _numExamples );
+			for ( int i = 0; i < _numExamples; ++i ) 
+			{
+				vector<Label> labels = pData->getLabels(i);
+				vector<Label>::iterator lIt;
+				int l;
+				for (l=0, lIt=labels.begin(); lIt != labels.end(); ++lIt, ++l )
+				{
+					if (lIt->y>0)
+					{
+						_labels[i]=l;
+						break;
+					}
+				}
+			}
+		}
+		//-------------------------------------------------------------------------------------------
+		void setToZero()
+		{
+			for ( int i = 0; i < _numExamples; ++i ) fill(_margins[i].begin(),_margins[i].end(),0.0);
+			fill( _e01.begin(), _e01.end(), 0.0 );
+		}
+		//-------------------------------------------------------------------------------------------
+		vector<AlphaReal>& getResultVector( const int i ){ return _margins[i]; }		
+		//-------------------------------------------------------------------------------------------
+		void printResultVector( const int i )
+		{ 
+			for( int l=0; l<_numClasses; ++l )
+				cout << _margins[i][l] << " ";
+			cout << endl;
+		}						
+		//-------------------------------------------------------------------------------------------
+		void setClassificationError( const int i, const int res ) { _e01[i]=res; }
+		//-------------------------------------------------------------------------------------------
+		void calculateMargins( void ) 
+		{  
+			_notcorrectlyClassifiedInstances.clear();
+			_cumMargin.resize(_numExamples);
+			fill(_cumMargin.begin(),_cumMargin.end(),0.0);
+			for (int i = 0; i < _numExamples; ++i )
+			{
+				if (_e01[i]) _notcorrectlyClassifiedInstances.push_back(i);
+				for (int l=0; l<_numClasses; ++l )
+				{
+					_cumMargin[i] += exp(-_margins[i][l]);
+				}
+				
+				// multi-class margin
+//				AlphaReal minPos = _margins[i][_labels[i]];
+//				AlphaReal maxNeg = -numeric_limits<AlphaReal>::max();
+//				for (int l=0; l<_numClasses; ++l )
+//				{
+//					if ((_labels[i]!=i)&&(_margins[i][l]>maxNeg))
+//					{
+//						maxNeg = _margins[i][l];
+//					}
+//				}				
+//				_cumMargin[i] = exp(maxNeg-minPos);
+			}
+			if (_notcorrectlyClassifiedInstances.empty())
+			{
+				_notcorrectlyClassifiedInstances.resize(_numExamples);
+				for (int i = 0; i < _numExamples; ++i ) _notcorrectlyClassifiedInstances[i]=i;
+				cout << "WARNING: Training error is zero!!" << endl;
+			}
+			
+			random_shuffle(_cumMargin.begin(),_cumMargin.end());
+		}
+		//-------------------------------------------------------------------------------------------
+		int getRandomIndexOfNotCorrectlyClassifiedInstance( AlphaReal& cumMargin )
+		{
+			int retval = rand() % _notcorrectlyClassifiedInstances.size();
+			retval = _notcorrectlyClassifiedInstances[retval];
+			cumMargin = _cumMargin[retval];
+			
+			return retval;
+		}
+		//-------------------------------------------------------------------------------------------
+		int getRandomIndexOfInstance( AlphaReal& cumMargin )
+		{
+			int retval = rand() % _numExamples;
+			cumMargin = _cumMargin[retval];
+			
+			return retval;
+		}		
+		//-------------------------------------------------------------------------------------------
+	public:	
 		AlphaReal numOfEvaluatedClassifier;
 		AlphaReal errorRate;
 		AlphaReal avgReward;
+		
+		int _numExamples;
+		int _numClasses;
+		
+		vector< vector< AlphaReal > > _margins;
+		vector< int >				  _e01;
+		
+		vector< int >				  _notcorrectlyClassifiedInstances;
+		vector< AlphaReal >			  _cumMargin;
+		vector< int >				  _labels;
 	};
 	
 
@@ -90,7 +204,7 @@ namespace MultiBoost {
         : _numIterations(0), _verbose(1), _withConstantLearner(true), _rollouts(10),
         _resumeShypFileName(""), _outputInfoFile(""), _trainingIter(1000), _inshypFileName(""),
 		_rolloutType( RL_MONTECARLO ), _actionNumber(2), _rewardtype(RW_ZEROONE), _beta(0.1), _policy(NULL), _outDir(""),
-		_outputTrainingError(false) {}
+		_outputTrainingError(false), _epsilon(0.0) {}
 		
         /**
          * Start the learning process.
@@ -138,11 +252,11 @@ namespace MultiBoost {
 									vector< ExampleResults* >& results );
         
 		virtual void getClassError( InputData* pData, const vector<ExampleResults*>& results, AlphaReal& classError);		
-		void rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL );
+		void rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL, PolicyResult* result = NULL );
 		
 		AlphaReal getReward( vector<AlphaReal>& margins, InputData* pData, int index );
 				
-		AlphaReal getErrorRate(InputData* pData, const char* fname, PolicyResult& policyResult );
+		AlphaReal getErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult );
 		
 		inline virtual void getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins );
     protected:
@@ -209,6 +323,7 @@ namespace MultiBoost {
 		GenericClassificationBasedPolicy* _policy;
 		string _outDir;
 		bool _outputTrainingError;
+		AlphaReal _epsilon;
 	};		
 	// ------------------------------------------------------------------------------
 	// ------------------------------------------------------------------------------

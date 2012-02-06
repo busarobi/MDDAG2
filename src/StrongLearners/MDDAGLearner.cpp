@@ -115,10 +115,17 @@ namespace MultiBoost {
 		
 		if ( args.hasArgument("rollouts") )
 			args.getValue("rollouts", 0, _rollouts);  						
-		
+
 		if ( args.hasArgument("beta") )
-			args.getValue("beta", 0, _beta);  						
+			args.getValue("beta", 0, _beta);  								
 		
+		if ( args.hasArgument("epsilon") )
+			args.getValue("epsilon", 0, _epsilon);  						
+		
+		
+		if ( args.hasArgument( "outtrainingerror" ) )
+			_outputTrainingError = true;
+
 		
 		string rollouttype = "";
 		if ( args.hasArgument( "rollouttype" ) )
@@ -128,6 +135,8 @@ namespace MultiBoost {
 			_rolloutType = RL_MONTECARLO;
 		else if ( rollouttype.compare( "szatymaz" ) == 0 )
 			_rolloutType = RL_SZATYMAZ;
+		else if ( rollouttype.compare( "badszatymaz" ) == 0 )
+			_rolloutType = RL_BADSZATYMAZ;
 		else if ( rollouttype.compare( "full" ) == 0 )
 			_rolloutType = RL_FULL;
 		else if ( rollouttype.compare( "oneshot" ) == 0 )
@@ -137,12 +146,17 @@ namespace MultiBoost {
 			_rolloutType = RL_SZATYMAZ;
 		}
 		
+		if (_rolloutType==RL_BADSZATYMAZ)
+		{
+			cout << "WARNING: The training error has to be caclualted!" << endl;
+			cout << "outtrainingerror flag is on!" << endl;
+			_outputTrainingError = true;
+		}
+		
+		
 		if ( args.hasArgument( "outdir" ) )
 			args.getValue("outdir", 0, _outDir );   
-		
-		if ( args.hasArgument( "outtrainingerror" ) )
-			_outputTrainingError = true;
-		
+				
 		string succesrewardtype = "";
 		if ( args.hasArgument( "succrewardtype" ) )
 			args.getValue("succrewardtype", 0, succesrewardtype );
@@ -283,8 +297,8 @@ namespace MultiBoost {
 		// Starting the MDDAG main loop
 		///////////////////////////////////////////////////////////////////////
 		AlphaReal policyError = 0.0;		
-		PolicyResult policyResultTrain;
-		PolicyResult policyResultTest;
+		PolicyResult* policyResultTrain = new PolicyResult( pTrainingData);
+		PolicyResult* policyResultTest = new PolicyResult( pTestData);
 		
 		InputData* rolloutTrainingData;
 		
@@ -354,9 +368,9 @@ namespace MultiBoost {
 			rolloutDataFile = _outDir + tmpFileNameChar;
 			if (t==0)
 				// the first rollout is fast, thus we generate a lot of rollout instance
-				rollout( pTrainingData, rolloutDataFile, 10 * _rollouts, _policy );
+				rollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy );
 			else 
-				rollout( pTrainingData, rolloutDataFile, _rollouts, _policy );
+				rollout( pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
 			
 			
 			rolloutTrainingData = getRolloutData( args, rolloutDataFile );						
@@ -384,15 +398,15 @@ namespace MultiBoost {
 			getErrorRate(pTestData, tmpFileName.c_str(), policyResultTest);
 			
 			_outStream << (t+1) << "\t" << policyError; 
-			_outStream << "\t" << trainError << "\t" << policyResultTrain.errorRate << "\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTrain.avgReward;
-			_outStream << "\t" << testError << "\t" << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
+			_outStream << "\t" << trainError << "\t" << policyResultTrain->errorRate << "\t" << policyResultTrain->numOfEvaluatedClassifier << "\t" << policyResultTrain->avgReward;
+			_outStream << "\t" << testError << "\t" << policyResultTest->errorRate << "\t" << policyResultTest->numOfEvaluatedClassifier << "\t" << policyResultTest->avgReward << "\t";
 			_outStream << endl << flush;
 			
 			
 			cout << "Policy training error:\t" << policyError << endl;
 			cout << "Error: (train/test): " << trainError << "\t" << testError << endl << flush;
-			cout << "Error (train/test):\t" << policyResultTrain.errorRate << "\t" << policyResultTest.errorRate << endl;
-			cout << "Num of evaluated BL (train/test):\t" << policyResultTrain.numOfEvaluatedClassifier << "\t" << policyResultTest.numOfEvaluatedClassifier << endl << flush;
+			cout << "Error (train/test):\t" << policyResultTrain->errorRate << "\t" << policyResultTest->errorRate << endl;
+			cout << "Num of evaluated BL (train/test):\t" << policyResultTrain->numOfEvaluatedClassifier << "\t" << policyResultTest->numOfEvaluatedClassifier << endl << flush;
 			cout << "result filename: " << outfilename << endl;
 			
 			delete rolloutTrainingData;
@@ -415,7 +429,7 @@ namespace MultiBoost {
 	}	
 	
 	// -------------------------------------------------------------------------
-	void MDDAGLearner::rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy )
+	void MDDAGLearner::rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy, PolicyResult* result )
 	{
 		const int numExamples = pData->getNumExamples();
 		const int numClasses = pData->getNumClasses();
@@ -439,6 +453,7 @@ namespace MultiBoost {
 		
 		AlphaReal finalReward;
 		AlphaReal reward;
+		AlphaReal mddagMargin;
 		vector<AlphaReal> estimatedRewardsForActions(_actionNumber);
 		
 		InputData* data = new InputData();
@@ -496,6 +511,11 @@ namespace MultiBoost {
 			random_shuffle( randomPermutation.begin(), randomPermutation.end() );
 			randWeakLearnerOrder.resize(_shypIter);
 		}		
+		
+		if (_rolloutType==RL_BADSZATYMAZ)
+		{
+			if (result) result->calculateMargins();
+		}
 		
 		for( int rlI = 0; rlI < rsize; ++rlI )
 		{			
@@ -584,6 +604,7 @@ namespace MultiBoost {
 					
 					break;
 				case RL_SZATYMAZ:
+				case RL_BADSZATYMAZ:
 				case RL_FULL:
 					if (_rolloutType==RL_FULL) {
 						currentWeakLearner++;
@@ -597,9 +618,22 @@ namespace MultiBoost {
 						
 						randIndex = currentExample;
 						randWeakLearnerIndex = currentWeakLearner;
-					} else {
+						mddagMargin = 1.0;
+					} else if (_rolloutType==RL_BADSZATYMAZ)
+					{
+						if (result) 
+						{
+							//randIndex = result->getRandomIndexOfNotCorrectlyClassifiedInstance(mddagMargin);
+							randIndex = result->getRandomIndexOfInstance(mddagMargin);
+						}else {
+							randIndex = rand() % numExamples; 
+							mddagMargin = 1.0;
+						}
+						randWeakLearnerIndex = rand() % _shypIter;						
+					}else {
 						randIndex = rand() % numExamples;								
 						randWeakLearnerIndex = rand() % _shypIter;								
+						mddagMargin = 1.0;
 					}					
 					
 					fill(margins[0].begin(), margins[0].end(), 0.0 );
@@ -613,9 +647,8 @@ namespace MultiBoost {
 							action = rand() % 2;
 						else {
 							// random \psilon exploration
-							//float r = (float)rand() / RAND_MAX;
-							float r=1.0;
-							if (r<0.0)
+							float r = (float)rand() / RAND_MAX;							
+							if (r<_epsilon)
 							{
 								action = rand() % 2;
 							} else {															
@@ -674,14 +707,8 @@ namespace MultiBoost {
 								if (policy==NULL)
 									action = rand() % _actionNumber;
 								else {			
-									float r = (float)rand() / RAND_MAX;
-									if (r<0.0)
-									{
-										action = rand() % _actionNumber;
-									} else {
-										getStateVector( state, t, margins[t] );							
-										action = policy->getExplorationNextAction( data );							
-									}
+									getStateVector( state, t, margins[t] );							
+									action = policy->getExplorationNextAction( data );							
 								}
 							}
 							
@@ -729,7 +756,7 @@ namespace MultiBoost {
 						rolloutStream << "{ ";
 						for( int a=0; a<_actionNumber; ++a)
 						{							
-							rolloutStream << a << " " << estimatedRewardsForActions[a] << " "; 
+							rolloutStream << a << " " << (mddagMargin * estimatedRewardsForActions[a]) << " "; 
 						}
 						
 						rolloutStream << "}" << " # " << rlI << " " << randIndex << " " << randWeakLearnerIndex ;
@@ -984,12 +1011,13 @@ namespace MultiBoost {
 	
 	// -------------------------------------------------------------------------
 	// -------------------------------------------------------------------------
-	AlphaReal MDDAGLearner::getErrorRate(InputData* pData, const char* fname, PolicyResult& policyResult )
+	AlphaReal MDDAGLearner::getErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult )
 	{
 		const int numExamples = pData->getNumExamples();		
 		const int classNum = pData->getNumClasses();
 		
-		vector<AlphaReal> results(classNum);
+		//vector<AlphaReal> results(classNum);
+		policyResult->setToZero();
 		
 		InputData* stateData = new InputData();
 		Example stateExample("state");
@@ -1011,6 +1039,8 @@ namespace MultiBoost {
 		for(int i=0; i<numExamples; ++i )				
 		{
 			usedClassifier.resize(0);
+			vector<AlphaReal>& results = policyResult->getResultVector(i);
+			
 			fill(results.begin(),results.end(),0.0);
 			for(int t=0; t<_foundHypotheses.size(); ++t)
 			{
@@ -1066,7 +1096,8 @@ namespace MultiBoost {
 				clRes=0;
 				numErrors++;
 			}
-			
+						
+			// output
 			out << clRes << "  ";
 			for( int l=0; l<classNum; ++l)
 				out << results[l] << " ";
@@ -1079,12 +1110,22 @@ namespace MultiBoost {
 			reward = reward - usedClassifier.size() * _beta;
 			
 			sumReward += reward;
+			
+			// set result
+			policyResult->setClassificationError( i, 1-clRes );
+			vector<Label>::iterator lIt;
+			for( lIt=labels.begin(); lIt!=labels.end(); ++lIt )
+			{
+				results[lIt->idx] *= lIt->y;
+			}
+			
+			
 		}
 		
 		delete stateData;
-		policyResult.errorRate = (AlphaReal)numErrors/(AlphaReal) numExamples;
-		policyResult.avgReward = sumReward/(AlphaReal) numExamples;
-		policyResult.numOfEvaluatedClassifier = (AlphaReal)overAllUsedClassifier/(AlphaReal) numExamples;
+		policyResult->errorRate = (AlphaReal)numErrors/(AlphaReal) numExamples;
+		policyResult->avgReward = sumReward/(AlphaReal) numExamples;
+		policyResult->numOfEvaluatedClassifier = (AlphaReal)overAllUsedClassifier/(AlphaReal) numExamples;
 		
 		return 0.0;
 	}
@@ -1418,7 +1459,7 @@ namespace MultiBoost {
 		//////////////////////////////////////////
 		// posteriors
 		//////////////////////////////////////////	
-		PolicyResult policyResultTest;
+		PolicyResult* policyResultTest = new PolicyResult(pTestData );
 		getErrorRate(pTestData, outFileName.c_str(), policyResultTest);
 		if ( !_outputInfoFile.empty() ) 
 		{
@@ -1434,11 +1475,11 @@ namespace MultiBoost {
 			}			
 		}
 		_outStream << "Error" << "\t" << "Evaluated" << "\t" << "Avg. Rew." << "\t" << endl;
-		_outStream << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
+		_outStream << policyResultTest->errorRate << "\t" << policyResultTest->numOfEvaluatedClassifier << "\t" << policyResultTest->avgReward << "\t";
 		_outStream << endl << flush;
 		
 		cout << "Error" << "\t" << "Evaluated" << "\t" << "Avg. Rew." << "\t" << endl;
-		cout << policyResultTest.errorRate << "\t" << policyResultTest.numOfEvaluatedClassifier << "\t" << policyResultTest.avgReward << "\t";
+		cout << policyResultTest->errorRate << "\t" << policyResultTest->numOfEvaluatedClassifier << "\t" << policyResultTest->avgReward << "\t";
 		cout << endl << flush;
 		
 		

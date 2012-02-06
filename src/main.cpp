@@ -371,6 +371,7 @@ int main(int argc, const char* argv[])
 	//args.declareArgument("arffheader", "Specify the arff header.", 1, "<arffHeaderFile>");
 	
 	// for MDDAG
+	//args.setGroup("MDDAG");
 	args.declareArgument("traintestmddag", "Performs training and test at the same time using mddag.", 5, "<trainingDataFile> <testDataFile> <modelFile> <nIterations> <baseIter>");
 	args.declareArgument("policytrainingiter", "The iteration number the policy learner takes.", 1, "<iternum>");
 	args.declareArgument("rollouts", "The number of rollouts.", 1, "<num>");
@@ -380,6 +381,7 @@ int main(int argc, const char* argv[])
 	args.declareArgument("policyalpha", "Alpha for policy array.", 1, "<alpha>");
 	args.declareArgument("succrewardtype", "Rewrd type (e01 or hammng)", 1, "<rward_type");
 	args.declareArgument("outtrainingerror", "Output training error", 0, "");
+	args.declareArgument("epsilon", "Exploration term", 1, "<epsilon>");
 	
 	// for VJ cascade
 	VJCascadeLearner::declareBaseArguments(args);
