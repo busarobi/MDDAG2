@@ -370,12 +370,12 @@ namespace MultiBoost {
 			{
 				// the first rollout is fast, thus we generate a lot of rollout instance
 				//rollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy );
-				parallelRollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy );
+				parallelRollout( pTrainingData, rolloutDataFile, _rollouts, _policy );
 			}
 			else 
 			{
 				//rollout( pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
-				parallelRollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy, policyResultTrain );
+				parallelRollout( pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
 			}
 			
 			
@@ -983,11 +983,11 @@ namespace MultiBoost {
 		}
 						
 		// create thread
-		Rollout rollout(this,pData,_rollouts, policy);
+		Rollout rollout(this,pData,rsize, policy);
 
 		// create state data
-		InputData** stateDataArray = new InputData*[_rollouts];
-		for (int i=0; i<_rollouts; ++i ) 
+		InputData** stateDataArray = new InputData*[rsize];
+		for (int i=0; i<rsize; ++i ) 
 		{	
 			stateDataArray[i] = new InputData();
 			Example stateExample("state");
@@ -996,21 +996,21 @@ namespace MultiBoost {
 		rollout._stateDataArray=stateDataArray;
 		
 		// create rollut data
-		vector< vector< AlphaReal> >* states = new vector< vector<AlphaReal > >(_rollouts);
+		vector< vector< AlphaReal> >* states = new vector< vector<AlphaReal > >(rsize);
 		rollout._states = states;
 		
 		//create weights
-		vector< vector< AlphaReal > >* weights = new vector< vector<AlphaReal > >(_rollouts);
+		vector< vector< AlphaReal > >* weights = new vector< vector<AlphaReal > >(rsize);
 		rollout._weights = weights;
 		
 		vector< int >* indices = NULL;
 		vector< int >* weakLearnerIndices = NULL;
-		vector<AlphaReal> mddagMargin( _rollouts );
+		vector<AlphaReal> mddagMargin( rsize );
 		if (_rolloutType==RL_SZATYMAZ)
 		{
-			indices = new vector<int>(_rollouts);
-			weakLearnerIndices = new vector<int>(_rollouts);
-			for (int ri = 0; ri < _rollouts; ++ri )
+			indices = new vector<int>(rsize);
+			weakLearnerIndices = new vector<int>(rsize);
+			for (int ri = 0; ri < rsize; ++ri )
 			{
 				indices->at(ri) = rand() % numExamples;								
 				weakLearnerIndices->at(ri) = rand() % _shypIter;								
@@ -1020,9 +1020,9 @@ namespace MultiBoost {
 		{
 			if (result) result->calculateMargins();
 			
-			indices = new vector<int>(_rollouts);
-			weakLearnerIndices = new vector<int>(_rollouts);
-			for (int ri = 0; ri < _rollouts; ++ri )
+			indices = new vector<int>(rsize);
+			weakLearnerIndices = new vector<int>(rsize);
+			for (int ri = 0; ri < rsize; ++ri )
 			{
 				
 				if (result) 
@@ -1043,10 +1043,10 @@ namespace MultiBoost {
 		
 		rollout._indices = indices;
 		rollout._weakLearnerIndices = weakLearnerIndices;
-		vector<int>* outputFlag = new vector<int>(_rollouts);
+		vector<int>* outputFlag = new vector<int>(rsize);
 		rollout._outputFlag = outputFlag;
 		
-		parallel_for( blocked_range<int>( 1, _rollouts ), rollout );
+		parallel_for( blocked_range<int>( 0, rsize ), rollout );
 		
 		// output rollout set
 		ofstream rolloutStream;
@@ -1070,7 +1070,7 @@ namespace MultiBoost {
 		}						
 
 		int rolloutSize=0;
-		for (int i=0; i<_rollouts; ++i )
+		for (int i=0; i<rsize; ++i )
 		{
 			if (rollout._outputFlag->at(i)) 
 			{
@@ -1217,30 +1217,33 @@ namespace MultiBoost {
 		CalculateErrorRate callculateError(this, pData,policyResult, stateDataArray, rewards, usedClassifier );
 		parallel_for( blocked_range<int>( 0, numExamples ), callculateError );
 		
-//		ofstream out;
-//		out.open(fname );				
-//		for(int i=0; i<numExamples; ++i )				
-//		{
-//			// output
-//			out << (1-policyResult->getClassificationError(i)) << "  ";
-//			
-//			vector<AlphaReal>& results = policyResult->getResultVector(i);
-//			
-//			for( int l=0; l<classNum; ++l)
-//				out << results[l] << " ";
-//			
-//			for( int t=0; t<usedClassifier->at(i).size(); ++t)
-//				out << usedClassifier->at(i)[t] << " ";
-//			out << endl << flush;
-//						
-//			sumReward += rewards->at(i);
-//		}			
-//		out.close();
+		ofstream out;
+		out.open(fname );				
+		for(int i=0; i<numExamples; ++i )				
+		{
+			// output
+			out << (1-policyResult->getClassificationError(i)) << "  ";
+			
+			vector<AlphaReal>& results = policyResult->getResultVector(i);
+			
+			for( int l=0; l<classNum; ++l)
+				out << results[l] << " ";
+			
+			for( int t=0; t<usedClassifier->at(i).size(); ++t)
+				out << usedClassifier->at(i)[t] << " ";
+			out << endl << flush;
+						
+		}			
+		out.close();
 		
-		
+		sumReward=0.0;
 		for (int i=0; i<numExamples; ++i ) 
 		{
 			vector<AlphaReal>& results = policyResult->getResultVector(i);
+			sumReward += rewards->at(i);
+			numErrors += policyResult->getClassificationError(i);
+			overAllUsedClassifier += usedClassifier->at(i).size();
+			
 			// set result
 			vector<Label> labels = pData->getLabels(i);
 			vector<Label>::iterator lIt;

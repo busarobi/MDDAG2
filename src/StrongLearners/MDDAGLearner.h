@@ -421,22 +421,17 @@ namespace MultiBoost {
 					{
 						clRes=0;						
 					}
-				} else if (usedClassifier[i].size() == 0) 
+				} else if (usedClassifier->at(i).size() == 0) 
 				{
 					clRes=0;					
 				}
 				else {
 					clRes=0;
 				}
-				
-				// output
-				
-				
-				AlphaReal reward = mddag->getReward(results, pData, i );
-				rewards->at(i) = reward - usedClassifier[i].size() * mddag->_beta;
-				
-				
-				
+												
+				AlphaReal reward = mddag->getReward(results, pData, i );				
+				rewards->at(i) = reward - usedClassifier->at(i).size() * mddag->_beta;								
+
 				// set result
 				policyResult->setClassificationError( i, 1-clRes );
 			}
