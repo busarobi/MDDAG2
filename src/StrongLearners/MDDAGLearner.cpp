@@ -395,15 +395,15 @@ namespace MultiBoost {
 			tmpFileName = _outDir + outfilename;
 			
 			if (_outputTrainingError)
-				getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
-				//parallelGetErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+				//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+				parallelGetErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
 			
 			if (_verbose>0)
 				cout << "Classifying test." << endl;			
 			sprintf( outfilename, "outtest_%d.txt", t+1 );
 			tmpFileName = _outDir + outfilename;
-			getErrorRate(pTestData, tmpFileName.c_str(), policyResultTest);
-			//parallelGetErrorRate(pTestData, tmpFileName.c_str(), policyResultTest);
+			//getErrorRate(pTestData, tmpFileName.c_str(), policyResultTest);
+			parallelGetErrorRate(pTestData, tmpFileName.c_str(), policyResultTest);
 			
 			_outStream << (t+1) << "\t" << policyError; 
 			_outStream << "\t" << trainError << "\t" << policyResultTrain->errorRate << "\t" << policyResultTrain->numOfEvaluatedClassifier << "\t" << policyResultTrain->avgReward;
