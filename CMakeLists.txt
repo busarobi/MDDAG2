@@ -16,7 +16,7 @@ file(GLOB_RECURSE project_SRCS "${BASEPATH}/*" )
 #ADD_DEFINITIONS( "-DALPHAREALFLOAT" )
 
 #set(CMAKE_INCLUDE_PATH ./)
-include_directories("${BASEPATH}")
+include_directories("${BASEPATH}" "/sps/appstat/busarobi/MDDAG2/TBB/tbb40_20111130oss/include")
 
 link_directories("/sps/appstat/busarobi/MDDAG2/TBB/tbb40_20111130oss/lib/intel64/cc4.1.0_libc2.4_kernel2.6.16.21")
 
