@@ -18,6 +18,10 @@ file(GLOB_RECURSE project_SRCS "${BASEPATH}/*" )
 #set(CMAKE_INCLUDE_PATH ./)
 include_directories("${BASEPATH}")
 
+link_directories("/sps/appstat/busarobi/MDDAG2/TBB/tbb40_20111130oss/lib/intel64/cc4.1.0_libc2.4_kernel2.6.16.21")
+
 #This indicates the target (the executable)
 add_executable(mddag2 ${project_SRCS})
+
+target_link_libraries("tbb")
 
