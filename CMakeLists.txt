@@ -23,5 +23,5 @@ link_directories("/sps/appstat/busarobi/MDDAG2/TBB/tbb40_20111130oss/lib/intel64
 #This indicates the target (the executable)
 add_executable(mddag2 ${project_SRCS})
 
-target_link_libraries("tbb")
+target_link_libraries(mddag2 "tbb" )
 
