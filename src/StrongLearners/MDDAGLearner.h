@@ -340,6 +340,7 @@ namespace MultiBoost {
 		
 		
 		friend class CalculateErrorRate;
+		friend class Rollout;
 	};		
 	// ------------------------------------------------------------------------------
 	// ------------------------------------------------------------------------------
@@ -455,26 +456,161 @@ namespace MultiBoost {
 		
 	};
 	
-	
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////				
+
 	class Rollout {
 	public:	
-		Rollout() {}
+		Rollout(MDDAGLearner* md, InputData* pD, int rolloutSize, GenericClassificationBasedPolicy* policy ) 
+		{
+			_pData=pD;
+			_mddag = md;
+			_policy = policy;
+			
+			_numExamples = _pData->getNumExamples();		
+			_numClasses = _pData->getNumClasses();
+			_rolloutSize = rolloutSize;												
+		}
 		
 		void operator()( const blocked_range<int>& range ) const {
-			for( int i=range.begin(); i!=range.end(); ++i ){	
-				cout << i << endl;
+			for( int i=range.begin(); i!=range.end(); ++i )
+			{	
+				InputData* stateData = _stateDataArray[i];
+				Example& e = stateData->getExampleReference(0);
+				vector<FeatureReal>& state = e.getValues();			
+				state.resize(_numClasses);
+				
+				vector<AlphaReal> estimatedRewardsForActions(_mddag->_actionNumber);
+				
+				vector< AlphaReal > margins(_numClasses); 
+				vector< AlphaReal > storedMargins(_numClasses); 
+				
+				vector<int> path(0);
+				int usedClassifier = 0;
+				
+				int randWeakLearnerIndex = _weakLearnerIndices->at(i);
+				int randIndex = _indices->at(i);
+				int action;								
+				
+				
+				for( int t = 0; t < randWeakLearnerIndex; ++t )
+				{
+					//cout << randWeakLearnerIndex << "\t" << randIndex << "\t" << t << endl; 
+					// no quit action
+					if (_policy==NULL)
+						action = rand() % 2;
+					else {
+						vector<AlphaReal> distribution(_mddag->_actionNumber);
+						_mddag->getStateVector( state, t, margins );
+							
+						_policy->getExplorationDistribution(stateData, distribution);
+							
+						if ( nor_utils::is_zero( distribution[0]-distribution[1]))
+							action = rand() % 2;
+						else 
+							(distribution[0]>distribution[1]) ? action=0 : action=1;				
+					}
+					
+					path.push_back( action );
+					
+					if (action==0) //classify
+					{
+						for( int l=0; l < _numClasses; ++l)
+						{
+							margins[l] = margins[l] + _mddag->_foundHypotheses[t]->getAlpha() * _mddag->_foundHypotheses[t]->classify( _pData, randIndex, l );
+						}
+						usedClassifier++;
+					}
+					else if (action==1) //skip
+					{
+					}
+					else if (action==2) //quit
+					{
+						break;
+					}
+				}	
+				
+				int currentpathsize = path.size();
+				int currentNumberOfUsedClassifier = usedClassifier;
+				
+				copy( margins.begin(), margins.end(), storedMargins.begin() );
+				
+				for( int a=0; a<_mddag->_actionNumber; ++a )
+				{
+					path.resize(currentpathsize);
+					usedClassifier = currentNumberOfUsedClassifier;
+					copy( storedMargins.begin(), storedMargins.end(), margins.begin() );
+					
+					for( int t = randWeakLearnerIndex; t < _mddag->_shypIter; ++t )
+					{
+						if (t == randWeakLearnerIndex)
+						{
+							action=a;
+						} 
+						else 
+						{															
+							if (_policy==NULL)
+								action = rand() % _mddag->_actionNumber;
+							else {			
+								_mddag->getStateVector( state, t, margins );							
+								action = _policy->getExplorationNextAction( stateData );							
+							}
+						}
+						
+						
+						
+						path.push_back( action );
+						
+						if (action==0) //classify
+						{
+							for( int l=0; l < _numClasses; ++l)
+							{
+								margins[l] = margins[l] + _mddag->_foundHypotheses[t]->getAlpha() * _mddag->_foundHypotheses[t]->classify( _pData, randIndex, l );
+							}
+							usedClassifier++;
+						}
+						else if (action==1) //skip
+						{
+						}
+						else if (action==2) //quit
+						{
+							break;
+						}
+					}
+					
+					AlphaReal finalReward = _mddag->getReward(margins, _pData, randIndex );
+					estimatedRewardsForActions[a] = finalReward - usedClassifier * _mddag->_beta;
+				}
+				
+				_mddag->getStateVector( state, randWeakLearnerIndex, storedMargins );
+				
+				_states->at(i).resize(state.size());
+				copy(state.begin(),state.end(),_states->at(i).begin() );
+				
+				
+				_outputFlag->at(i) = _mddag->normalizeWeights( estimatedRewardsForActions );
+				_weights->at(i).resize(estimatedRewardsForActions.size());
+				copy( estimatedRewardsForActions.begin(), estimatedRewardsForActions.end(), _weights->at(i).begin() );
 			}
 		}
-	protected:
-		// member variables
-		//GenericClassificationBasedPolicy* _policy;
-		//InputData * pData;
+
+		MDDAGLearner* _mddag;
+		InputData* _pData;				
+		int _rolloutSize;
+		int _numClasses;		
+		int _numExamples;		
 		
-		vector< AlphaReal > vec;
+		InputData** _stateDataArray;
 		
 		// for output
-		vector< vector< AlphaReal > >* states;
-		vector< vector< AlphaReal > >* weights;		
+		vector< vector< AlphaReal > >* _states;
+		vector< vector< AlphaReal > >* _weights;	
+		vector<int>* _outputFlag;
+		
+		vector< int >* _indices;
+		vector< int >* _weakLearnerIndices;
+		
+		GenericClassificationBasedPolicy* _policy;
 	};
 	
 	

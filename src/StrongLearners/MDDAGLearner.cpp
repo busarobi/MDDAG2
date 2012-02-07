@@ -367,10 +367,16 @@ namespace MultiBoost {
 			sprintf( tmpFileNameChar, "rollout_%d.txt", t+1 );
 			rolloutDataFile = _outDir + tmpFileNameChar;
 			if (t==0)
+			{
 				// the first rollout is fast, thus we generate a lot of rollout instance
-				rollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy );
+				//rollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy );
+				parallelRollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy );
+			}
 			else 
-				rollout( pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
+			{
+				//rollout( pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
+				parallelRollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy, policyResultTrain );
+			}
 			
 			
 			rolloutTrainingData = getRolloutData( args, rolloutDataFile );						
@@ -389,14 +395,15 @@ namespace MultiBoost {
 			tmpFileName = _outDir + outfilename;
 			
 			if (_outputTrainingError)
-				//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
-				parallelGetErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+				getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+				//parallelGetErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
 			
 			if (_verbose>0)
 				cout << "Classifying test." << endl;			
 			sprintf( outfilename, "outtest_%d.txt", t+1 );
 			tmpFileName = _outDir + outfilename;
 			getErrorRate(pTestData, tmpFileName.c_str(), policyResultTest);
+			//parallelGetErrorRate(pTestData, tmpFileName.c_str(), policyResultTest);
 			
 			_outStream << (t+1) << "\t" << policyError; 
 			_outStream << "\t" << trainError << "\t" << policyResultTrain->errorRate << "\t" << policyResultTrain->numOfEvaluatedClassifier << "\t" << policyResultTrain->avgReward;
@@ -966,40 +973,80 @@ namespace MultiBoost {
 		vector<AlphaReal>::iterator pIt;
 		
 		vector<int> labelDistribution(_actionNumber,0);
-		int rolloutSize=0;
-		
-		int usedClassifier;
-		int randIndex;
-		int randWeakLearnerIndex;
-		int action;
-		int currentpathsize;
-		int currentNumberOfUsedClassifier;
-		
 		vector<int> randomPermutation;
 		vector<int> randWeakLearnerOrder;
-		
-		AlphaReal finalReward;
-		AlphaReal reward;
-		AlphaReal mddagMargin;
-		vector<AlphaReal> estimatedRewardsForActions(_actionNumber);
-		
-		InputData* data = new InputData();
-		Example stateExample("state");
-		data->addExample(stateExample);
-		
-		Example& e = data->getExampleReference(0);
-		vector<FeatureReal>& state = e.getValues();						
-		
+				
+			
 		for( int i=0; i<=_shypIter; ++i )
 		{
 			margins[i].resize(numClasses);
 		}
 						
-		
 		// create thread
-		Rollout rollout;
-					
-		parallel_for( blocked_range<int>( 1, 100-1 ), rollout );
+		Rollout rollout(this,pData,_rollouts, policy);
+
+		// create state data
+		InputData** stateDataArray = new InputData*[_rollouts];
+		for (int i=0; i<_rollouts; ++i ) 
+		{	
+			stateDataArray[i] = new InputData();
+			Example stateExample("state");
+			stateDataArray[i]->addExample(stateExample);
+		}
+		rollout._stateDataArray=stateDataArray;
+		
+		// create rollut data
+		vector< vector< AlphaReal> >* states = new vector< vector<AlphaReal > >(_rollouts);
+		rollout._states = states;
+		
+		//create weights
+		vector< vector< AlphaReal > >* weights = new vector< vector<AlphaReal > >(_rollouts);
+		rollout._weights = weights;
+		
+		vector< int >* indices = NULL;
+		vector< int >* weakLearnerIndices = NULL;
+		vector<AlphaReal> mddagMargin( _rollouts );
+		if (_rolloutType==RL_SZATYMAZ)
+		{
+			indices = new vector<int>(_rollouts);
+			weakLearnerIndices = new vector<int>(_rollouts);
+			for (int ri = 0; ri < _rollouts; ++ri )
+			{
+				indices->at(ri) = rand() % numExamples;								
+				weakLearnerIndices->at(ri) = rand() % _shypIter;								
+				mddagMargin[ri] = 1.0;				
+			}			
+		} else if (_rolloutType==RL_BADSZATYMAZ) 
+		{
+			if (result) result->calculateMargins();
+			
+			indices = new vector<int>(_rollouts);
+			weakLearnerIndices = new vector<int>(_rollouts);
+			for (int ri = 0; ri < _rollouts; ++ri )
+			{
+				
+				if (result) 
+				{		
+					AlphaReal tmp;
+					indices->at(ri) = result->getRandomIndexOfInstance(tmp);
+					mddagMargin[ri] = tmp;
+				}else {
+					indices->at(ri) = rand() % numExamples; 
+					mddagMargin[ri] = 1.0;
+				}
+				weakLearnerIndices->at(ri) = rand() % _shypIter;						
+			}
+		} else {
+			cout << "paralell version is not impelemented" << endl;
+			exit(-1);
+		}
+		
+		rollout._indices = indices;
+		rollout._weakLearnerIndices = weakLearnerIndices;
+		vector<int>* outputFlag = new vector<int>(_rollouts);
+		rollout._outputFlag = outputFlag;
+		
+		parallel_for( blocked_range<int>( 1, _rollouts ), rollout );
 		
 		// output rollout set
 		ofstream rolloutStream;
@@ -1021,6 +1068,65 @@ namespace MultiBoost {
 		{
 			genHeader(rolloutStream, numClasses+3);
 		}						
+
+		int rolloutSize=0;
+		for (int i=0; i<_rollouts; ++i )
+		{
+			if (rollout._outputFlag->at(i)) 
+			{
+				vector<AlphaReal> &state = states->at(i);
+				for( int j=0; j<state.size(); ++j )
+				{
+					rolloutStream << state[j] << ",";
+				}
+				
+				vector<AlphaReal> & estimatedRewardsForActions = weights->at(i);
+				rolloutStream << "{ ";
+				for( int a=0; a<_actionNumber; ++a)
+				{							
+					rolloutStream << a << " " << (mddagMargin[i] * estimatedRewardsForActions[a]) << " "; 
+				}
+				
+				rolloutStream << "}" << " # " << i << " " << indices->at(i) << " " << weakLearnerIndices->at(i) ;
+				rolloutStream << endl;
+				
+				for( int a=0; a<_actionNumber; ++a)
+				{
+					if (estimatedRewardsForActions[a]>0) {
+						labelDistribution[a]++;
+					}
+				}
+				
+				rolloutSize++;
+			}
+		}
+		if (_verbose)
+		{
+			int sumPosLabels=0;
+			for( int a=0; a<_actionNumber; ++a)
+			{
+				sumPosLabels += labelDistribution[a];
+			}			
+			for( int a=0; a<_actionNumber; ++a)
+			{			
+				AlphaReal dist = static_cast<AlphaReal>(labelDistribution[a]) / static_cast<AlphaReal>(sumPosLabels);
+				cout << "Action (" << a << "):" << dist <<endl;
+			}
+			cout << "-->Num of rollout instance: " << rolloutSize << endl; 
+			cout << "-->Num. of pos. labels:     " << sumPosLabels << endl;
+		}
+		
+		
+		// delete
+		//vector< vector< AlphaReal > >* _states;
+		states->clear();
+		delete states;
+		//vector< vector< AlphaReal > >* _weights;	
+		weights->clear();
+		delete weights;
+		delete outputFlag;		
+		delete indices;
+		delete weakLearnerIndices;
 		
 	}
 	
@@ -1310,7 +1416,7 @@ namespace MultiBoost {
 			
 			int classNum = margins.size();
 			AlphaReal sumOfPosterios = 0.0;
-			vector<AlphaReal> posteriors( classNum );
+			vector<AlphaReal> posteriors( margins.size() );
 			
 			sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
 			
