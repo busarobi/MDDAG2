@@ -1209,10 +1209,7 @@ namespace MultiBoost {
 		AlphaReal sumReward = 0.0;
 		
 		int numErrors = 0;
-		
-		ofstream out;
-		out.open(fname );		
-		
+				
 		int overAllUsedClassifier = 0;
 		vector<vector< int > >* usedClassifier = new vector< vector< int > >(numExamples);		
 		vector< AlphaReal >* rewards = new vector<AlphaReal>(numExamples);
@@ -1220,33 +1217,40 @@ namespace MultiBoost {
 		CalculateErrorRate callculateError(this, pData,policyResult, stateDataArray, rewards, usedClassifier );
 		parallel_for( blocked_range<int>( 0, numExamples ), callculateError );
 		
-		for(int i=0; i<numExamples; ++i )				
+//		ofstream out;
+//		out.open(fname );				
+//		for(int i=0; i<numExamples; ++i )				
+//		{
+//			// output
+//			out << (1-policyResult->getClassificationError(i)) << "  ";
+//			
+//			vector<AlphaReal>& results = policyResult->getResultVector(i);
+//			
+//			for( int l=0; l<classNum; ++l)
+//				out << results[l] << " ";
+//			
+//			for( int t=0; t<usedClassifier->at(i).size(); ++t)
+//				out << usedClassifier->at(i)[t] << " ";
+//			out << endl << flush;
+//						
+//			sumReward += rewards->at(i);
+//		}			
+//		out.close();
+		
+		
+		for (int i=0; i<numExamples; ++i ) 
 		{
-			// output
-			out << (1-policyResult->getClassificationError(i)) << "  ";
-			
 			vector<AlphaReal>& results = policyResult->getResultVector(i);
-			
-			for( int l=0; l<classNum; ++l)
-				out << results[l] << " ";
-			
-			for( int t=0; t<usedClassifier->at(i).size(); ++t)
-				out << usedClassifier->at(i)[t] << " ";
-			out << endl << flush;
-						
-			sumReward += rewards->at(i);
-			
 			// set result
 			vector<Label> labels = pData->getLabels(i);
 			vector<Label>::iterator lIt;
 			for( lIt=labels.begin(); lIt!=labels.end(); ++lIt )
 			{
 				results[lIt->idx] *= lIt->y;
-			}
-			
-			
+			}						
 		}
-
+		
+		
 		for (int i=0; i<numExamples; ++i ) 
 		{
 			delete stateDataArray[i];
