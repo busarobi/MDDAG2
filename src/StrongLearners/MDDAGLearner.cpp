@@ -389,7 +389,8 @@ namespace MultiBoost {
 			tmpFileName = _outDir + outfilename;
 			
 			if (_outputTrainingError)
-				getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+				//getErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
+				parallelGetErrorRate(pTrainingData, tmpFileName.c_str(), policyResultTrain);
 			
 			if (_verbose>0)
 				cout << "Classifying test." << endl;			
@@ -952,6 +953,78 @@ namespace MultiBoost {
 		
 		rolloutStream.close();
 	}
+	
+	// -------------------------------------------------------------------------
+	
+	void MDDAGLearner::parallelRollout(InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy, PolicyResult* result)
+	{
+		const int numExamples = pData->getNumExamples();
+		const int numClasses = pData->getNumClasses();
+		
+		vector< vector<AlphaReal> > margins(_shypIter+1);		
+		vector<AlphaReal> path(_shypIter);	
+		vector<AlphaReal>::iterator pIt;
+		
+		vector<int> labelDistribution(_actionNumber,0);
+		int rolloutSize=0;
+		
+		int usedClassifier;
+		int randIndex;
+		int randWeakLearnerIndex;
+		int action;
+		int currentpathsize;
+		int currentNumberOfUsedClassifier;
+		
+		vector<int> randomPermutation;
+		vector<int> randWeakLearnerOrder;
+		
+		AlphaReal finalReward;
+		AlphaReal reward;
+		AlphaReal mddagMargin;
+		vector<AlphaReal> estimatedRewardsForActions(_actionNumber);
+		
+		InputData* data = new InputData();
+		Example stateExample("state");
+		data->addExample(stateExample);
+		
+		Example& e = data->getExampleReference(0);
+		vector<FeatureReal>& state = e.getValues();						
+		
+		for( int i=0; i<=_shypIter; ++i )
+		{
+			margins[i].resize(numClasses);
+		}
+						
+		
+		// create thread
+		Rollout rollout;
+					
+		parallel_for( blocked_range<int>( 1, 100-1 ), rollout );
+		
+		// output rollout set
+		ofstream rolloutStream;
+		rolloutStream.open( fname.c_str() );
+		if (!rolloutStream.is_open())
+		{
+			cout << "Cannot open rollout file" << endl;
+			exit(-1);
+		}
+		// gen header
+		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
+		{
+#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
+			genHeader(rolloutStream, numClasses+5);
+#else
+			genHeader(rolloutStream, numClasses+4);
+#endif
+		} if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
+		{
+			genHeader(rolloutStream, numClasses+3);
+		}						
+		
+	}
+	
+	
 	// -------------------------------------------------------------------------
 	// -------------------------------------------------------------------------
 	int MDDAGLearner::normalizeWeights( vector<AlphaReal>& weights )
@@ -1008,6 +1081,86 @@ namespace MultiBoost {
 		
 		return notAllZero;
 	}
+
+	// -------------------------------------------------------------------------
+	// -------------------------------------------------------------------------
+	AlphaReal MDDAGLearner::parallelGetErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult )
+	{
+		const int numExamples = pData->getNumExamples();		
+		const int classNum = pData->getNumClasses();
+		
+		//vector<AlphaReal> results(classNum);
+		policyResult->setToZero();
+		
+		InputData** stateDataArray = new InputData*[numExamples];
+		for (int i=0; i<numExamples; ++i ) 
+		{	
+			stateDataArray[i] = new InputData();
+			Example stateExample("state");
+			stateDataArray[i]->addExample(stateExample);
+		}
+		
+		AlphaReal sumReward = 0.0;
+		
+		int numErrors = 0;
+		
+		ofstream out;
+		out.open(fname );		
+		
+		int overAllUsedClassifier = 0;
+		vector<vector< int > >* usedClassifier = new vector< vector< int > >(numExamples);		
+		vector< AlphaReal >* rewards = new vector<AlphaReal>(numExamples);
+		
+		CalculateErrorRate callculateError(this, pData,policyResult, stateDataArray, rewards, usedClassifier );
+		parallel_for( blocked_range<int>( 0, numExamples ), callculateError );
+		
+		for(int i=0; i<numExamples; ++i )				
+		{
+			// output
+			out << (1-policyResult->getClassificationError(i)) << "  ";
+			
+			vector<AlphaReal>& results = policyResult->getResultVector(i);
+			
+			for( int l=0; l<classNum; ++l)
+				out << results[l] << " ";
+			
+			for( int t=0; t<usedClassifier->at(i).size(); ++t)
+				out << usedClassifier->at(i)[t] << " ";
+			out << endl << flush;
+						
+			sumReward += rewards->at(i);
+			
+			// set result
+			vector<Label> labels = pData->getLabels(i);
+			vector<Label>::iterator lIt;
+			for( lIt=labels.begin(); lIt!=labels.end(); ++lIt )
+			{
+				results[lIt->idx] *= lIt->y;
+			}
+			
+			
+		}
+
+		for (int i=0; i<numExamples; ++i ) 
+		{
+			delete stateDataArray[i];
+			usedClassifier->at(i).clear();
+		}
+		delete usedClassifier;
+		
+		rewards->clear();
+		delete rewards;
+		
+		delete stateDataArray;
+		
+		
+		policyResult->errorRate = (AlphaReal)numErrors/(AlphaReal) numExamples;
+		policyResult->avgReward = sumReward/(AlphaReal) numExamples;
+		policyResult->numOfEvaluatedClassifier = (AlphaReal)overAllUsedClassifier/(AlphaReal) numExamples;
+		
+		return 0.0;		
+	}
+	
 	
 	// -------------------------------------------------------------------------
 	// -------------------------------------------------------------------------
@@ -1608,6 +1761,6 @@ namespace MultiBoost {
 	}
 	
 	// -------------------------------------------------------------------------
-	// -------------------------------------------------------------------------
+			
 }
 

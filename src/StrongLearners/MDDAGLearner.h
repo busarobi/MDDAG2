@@ -47,8 +47,12 @@
 #include "Utils/MDPutils.h"
 
 
-using namespace std;
+#include "tbb/parallel_for.h"
+#include "tbb/blocked_range.h"
 
+
+using namespace std;
+using namespace tbb;
 //////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -65,7 +69,10 @@ namespace MultiBoost {
 		RW_ZEROONE,
 		RW_EXPLOSS
 	};
-	
+
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
+
 	class PolicyResult {
 	public:
 		//-------------------------------------------------------------------------------------------
@@ -119,6 +126,7 @@ namespace MultiBoost {
 		}						
 		//-------------------------------------------------------------------------------------------
 		void setClassificationError( const int i, const int res ) { _e01[i]=res; }
+		int getClassificationError( const int i ) { return _e01[i]; }
 		//-------------------------------------------------------------------------------------------
 		void calculateMargins( void ) 
 		{  
@@ -187,7 +195,9 @@ namespace MultiBoost {
 		vector< AlphaReal >			  _cumMargin;
 		vector< int >				  _labels;
 	};
-	
+
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
 
 	
 	class MDDAGLearner : public GenericStrongLearner
@@ -253,15 +263,18 @@ namespace MultiBoost {
         
 		virtual void getClassError( InputData* pData, const vector<ExampleResults*>& results, AlphaReal& classError);		
 		void rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL, PolicyResult* result = NULL );
+
+		void parallelRollout(InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL, PolicyResult* result = NULL);
 		
 		AlphaReal getReward( vector<AlphaReal>& margins, InputData* pData, int index );
 				
 		AlphaReal getErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult );
+		AlphaReal parallelGetErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult );
 		
 		inline virtual void getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins );
     protected:
 		inline int normalizeWeights( vector<AlphaReal>& weights );
-		inline AlphaReal getNormalizedScores( vector<AlphaReal>& scores, vector<AlphaReal>& normalizedScores, int iter );
+		inline virtual AlphaReal getNormalizedScores( vector<AlphaReal>& scores, vector<AlphaReal>& normalizedScores, int iter );
 		
         AlphaReal genHeader( ofstream& out, int fnum );
         /**
@@ -324,9 +337,147 @@ namespace MultiBoost {
 		string _outDir;
 		bool _outputTrainingError;
 		AlphaReal _epsilon;
+		
+		
+		friend class CalculateErrorRate;
 	};		
 	// ------------------------------------------------------------------------------
 	// ------------------------------------------------------------------------------
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////				
+	class CalculateErrorRate {
+	public:	
+		CalculateErrorRate(MDDAGLearner* md, InputData* pD,PolicyResult* pR, InputData** sDA,vector<AlphaReal>* rws, vector< vector< int > >* usedCl ) 
+		{
+			pData=pD;
+			policyResult=pR;
+			stateDataArray=sDA;			
+			mddag = md;
+			
+			const int numExamples = pData->getNumExamples();		
+			classNum = pData->getNumClasses();
+			
+			
+		
+			usedClassifier = usedCl;
+			
+			rewards = rws;
+			rewards->resize(numExamples);
+			usedClassifier->resize( numExamples );
+		}
+		
+		void operator()( const blocked_range<int>& range ) const {
+			for( int i=range.begin(); i!=range.end(); ++i ){	
+				InputData* stateData = stateDataArray[i];
+				Example& e = stateData->getExampleReference(0);
+				vector<FeatureReal>& state = e.getValues();			
+				state.resize(classNum);
+				
+				usedClassifier->at(i).resize(0);
+				vector<AlphaReal>& results = policyResult->getResultVector(i);
+				
+				fill(results.begin(),results.end(),0.0);
+				for(int t=0; t< mddag->_foundHypotheses.size(); ++t)
+				{
+					mddag->getStateVector( state, t, results );								
+					
+					
+					int action = mddag->_policy->getNextAction(stateData);				
+					
+					if (action==0)
+					{
+						usedClassifier->at(i).push_back(t);						
+						
+						AlphaReal currentAlpha = mddag->_foundHypotheses[t]->getAlpha();
+						for( int l=0; l<classNum; ++l )
+						{
+							results[l] += currentAlpha * mddag->_foundHypotheses[t]->classify(pData,i,l);
+						}
+					} else if (action == 2 )
+						break; //quit
+					
+					
+				}
+				AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
+				int forecastlabel = -1;
+				
+				for(int l=0; l<classNum; ++l )
+				{
+					if (results[l]>maxMargin)
+					{
+						maxMargin=results[l];
+						forecastlabel=l;
+					}										
+				}						
+				
+				vector<Label> labels = pData->getLabels(i);
+				
+				int clRes=1;
+				
+				if (pData->hasLabel(i,forecastlabel) )	
+				{
+					if(labels[forecastlabel].y<0) 
+					{
+						clRes=0;						
+					}
+				} else if (usedClassifier[i].size() == 0) 
+				{
+					clRes=0;					
+				}
+				else {
+					clRes=0;
+				}
+				
+				// output
+				
+				
+				AlphaReal reward = mddag->getReward(results, pData, i );
+				rewards->at(i) = reward - usedClassifier[i].size() * mddag->_beta;
+				
+				
+				
+				// set result
+				policyResult->setClassificationError( i, 1-clRes );
+			}
+		}
+		
+		// variables
+		InputData** stateDataArray;
+		PolicyResult* policyResult;
+		InputData* pData;
+		
+		vector<AlphaReal>* rewards;
+		
+		vector< vector< int > >* usedClassifier;
+		int classNum;
+		
+		MDDAGLearner* mddag;
+		
+	};
+	
+	
+	class Rollout {
+	public:	
+		Rollout() {}
+		
+		void operator()( const blocked_range<int>& range ) const {
+			for( int i=range.begin(); i!=range.end(); ++i ){	
+				cout << i << endl;
+			}
+		}
+	protected:
+		// member variables
+		//GenericClassificationBasedPolicy* _policy;
+		//InputData * pData;
+		
+		vector< AlphaReal > vec;
+		
+		// for output
+		vector< vector< AlphaReal > >* states;
+		vector< vector< AlphaReal > >* weights;		
+	};
+	
+	
 	
 } // end of namespace MultiBoost
 
