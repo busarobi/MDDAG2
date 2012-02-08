@@ -969,13 +969,12 @@ namespace MultiBoost {
 		const int numClasses = pData->getNumClasses();
 		
 		vector< vector<AlphaReal> > margins(_shypIter+1);		
-		vector<AlphaReal> path(_shypIter);	
-		vector<AlphaReal>::iterator pIt;
 		
 		vector<int> labelDistribution(_actionNumber,0);
 		vector<int> randomPermutation;
 		vector<int> randWeakLearnerOrder;
 				
+		if (_rolloutType==RL_FULL)	rsize = numExamples * _shypIter;
 			
 		for( int i=0; i<=_shypIter; ++i )
 		{
@@ -1036,6 +1035,21 @@ namespace MultiBoost {
 				}
 				weakLearnerIndices->at(ri) = rand() % _shypIter;						
 			}
+		}else if (_rolloutType==RL_FULL) 
+		{
+			indices = new vector<int>(numExamples*_shypIter);
+			weakLearnerIndices = new vector<int>(numExamples*_shypIter);
+			int tmpi = 0;
+			for (int ri = 0; ri < numExamples; ++ri )
+			{
+				for (int si = 0; si < _shypIter; ++si )
+				{
+					weakLearnerIndices->at(tmpi) = si;						
+					indices->at(tmpi) = ri; 
+					mddagMargin[tmpi] = 1.0;
+					tmpi++;
+				}				
+			}			
 		} else {
 			cout << "paralell version is not impelemented" << endl;
 			exit(-1);
@@ -1118,6 +1132,12 @@ namespace MultiBoost {
 		
 		
 		// delete
+		for (int i=0; i<rsize; ++i ) 
+		{	
+			delete stateDataArray[i];
+		}			
+		delete stateDataArray;
+		
 		//vector< vector< AlphaReal > >* _states;
 		states->clear();
 		delete states;
@@ -1260,13 +1280,11 @@ namespace MultiBoost {
 			usedClassifier->at(i).clear();
 		}
 		delete usedClassifier;
+		delete stateDataArray;
 		
 		rewards->clear();
 		delete rewards;
-		
-		delete stateDataArray;
-		
-		
+								
 		policyResult->errorRate = (AlphaReal)numErrors/(AlphaReal) numExamples;
 		policyResult->avgReward = sumReward/(AlphaReal) numExamples;
 		policyResult->numOfEvaluatedClassifier = (AlphaReal)overAllUsedClassifier/(AlphaReal) numExamples;
@@ -1430,6 +1448,7 @@ namespace MultiBoost {
 #ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
 			state.resize(classNum+5);
 			state[classNum+4] = sumOfPosterios; 
+			//state[classNum+4] = iter; 
 #else			
 			state.resize(classNum+4);			
 #endif			
