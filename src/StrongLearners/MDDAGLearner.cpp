@@ -1447,8 +1447,8 @@ namespace MultiBoost {
 			
 #ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
 			state.resize(classNum+5);
-			state[classNum+4] = sumOfPosterios; 
-			//state[classNum+4] = iter; 
+			//state[classNum+4] = sumOfPosterios; 
+			state[classNum+4] = iter; 
 #else			
 			state.resize(classNum+4);			
 #endif			
