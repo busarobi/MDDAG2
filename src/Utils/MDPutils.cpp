@@ -12,7 +12,7 @@
 
 namespace MultiBoost {
 	// -----------------------------------------------------------------------------------
-	int GenericClassificationBasedPolicy::getNextAction( InputData* state )
+	int GenericClassificationBasedPolicy::getNextAction( InputData* state, const int arrayInd )
 	{
 		vector<AlphaReal> forecast(_actionNum);
 		
@@ -58,10 +58,10 @@ namespace MultiBoost {
 	}
 	
 	// -----------------------------------------------------------------------------------	
-	int GenericClassificationBasedPolicy::getExplorationNextAction( InputData* state )
+	int GenericClassificationBasedPolicy::getExplorationNextAction( InputData* state, const int arrayInd )
 	{
 		vector<AlphaReal> forecast(_actionNum);
-		getExplorationDistribution(state, forecast);
+		getExplorationDistribution(state, forecast, arrayInd);
 		
 		AlphaReal maxMargin = -numeric_limits<AlphaReal>::max();
 		int forecastlabel = -1;
@@ -102,7 +102,7 @@ namespace MultiBoost {
 	}
 	
 	// -----------------------------------------------------------------------------------	
-	AlphaReal AdaBoostPolicy::trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations )
+	AlphaReal AdaBoostPolicy::trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations, const int arrayInd )
 	{
 		AdaBoostMHLearner* sHypothesis = new AdaBoostMHLearner();
 		sHypothesis->run(_args, pTrainingData, baseLearnerName, numIterations, _weakhyp );
@@ -150,7 +150,7 @@ namespace MultiBoost {
 	
 	
 	// -----------------------------------------------------------------------------------
-	void AdaBoostPolicy::getDistribution( InputData* state, vector<AlphaReal>& distribution )
+	void AdaBoostPolicy::getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd )
 	{
 		distribution.resize(_actionNum);
 		fill( distribution.begin(), distribution.end(), 0.0 );
@@ -175,7 +175,7 @@ namespace MultiBoost {
 		
 	}
 	//------------------------------------------------------------------------------------------
-	AlphaReal AdaBoostPolicyArray::trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations )
+	AlphaReal AdaBoostPolicyArray::trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations, const int arrayInd )
 	{
 		//_actionNum = pTrainingData->getNumClasses();
 		_baseLearnerName = baseLearnerName;
@@ -191,7 +191,7 @@ namespace MultiBoost {
 		return retval;
 	}	
 	//------------------------------------------------------------------------------------------
-	void AdaBoostPolicyArray::getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution )
+	void AdaBoostPolicyArray::getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd )
 	{
 		vector< AlphaReal > tmpDistribution( _actionNum );		
 		fill( distribution.begin(), distribution.end(), 0.0 );
@@ -208,7 +208,7 @@ namespace MultiBoost {
 		}
 	}	
 	//------------------------------------------------------------------------------------------
-	void AdaBoostPolicyArray::getDistribution( InputData* state, vector<AlphaReal>& distribution )
+	void AdaBoostPolicyArray::getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd )
 	{
 		const int ind = _policies.size()-1;
 		_policies[ind]->getDistribution( state, distribution );
@@ -309,8 +309,23 @@ namespace MultiBoost {
 		
 		return weakHypotheses.size();
 	}
+	
 	//------------------------------------------------------------------------------------------	
+	void AdaBoostArrayOfPolicyArray::getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd )
+	{
+		_policies[arrayInd]->getDistribution( state, distribution );
+	}
 	
+	//------------------------------------------------------------------------------------------	
+	void AdaBoostArrayOfPolicyArray::getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd)
+	{
+		_policies[arrayInd]->getExplorationDistribution( state, distribution );
+	}
 	
-	
+	//------------------------------------------------------------------------------------------		
+	int AdaBoostArrayOfPolicyArray::getNextAction( InputData* state, const int arrayInd )
+	{
+		return _policies[arrayInd]->getNextAction( state );
+	}
+	//------------------------------------------------------------------------------------------			
 }

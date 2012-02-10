@@ -62,7 +62,8 @@ namespace MultiBoost {
 		RL_SZATYMAZ,
 		RL_BADSZATYMAZ,
 		RL_FULL,
-		RL_ONESHOT
+		RL_ONESHOT,
+		RL_ONEPOSSZATYMAZ
 	};
 	
 	enum eRewardType {
@@ -262,18 +263,18 @@ namespace MultiBoost {
 									vector< ExampleResults* >& results );
         
 		virtual void getClassError( InputData* pData, const vector<ExampleResults*>& results, AlphaReal& classError);		
-		void rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL, PolicyResult* result = NULL );
 
-		void parallelRollout(InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL, PolicyResult* result = NULL);
+		virtual void rollout(const nor_utils::Args& args, InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL, PolicyResult* result = NULL );
+		virtual void parallelRollout(const nor_utils::Args& args, InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL, PolicyResult* result = NULL, const int weakLearnerPostion = -1 );
 		
-		AlphaReal getReward( vector<AlphaReal>& margins, InputData* pData, int index );
+		virtual AlphaReal getReward( vector<AlphaReal>& margins, InputData* pData, int index );
 				
-		AlphaReal getErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult );
-		AlphaReal parallelGetErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult );
+		virtual AlphaReal getErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult );
+		virtual AlphaReal parallelGetErrorRate(InputData* pData, const char* fname, PolicyResult* policyResult );
 		
 		inline virtual void getStateVector( vector<FeatureReal>& state, int iter, vector<AlphaReal>& margins );
     protected:
-		inline int normalizeWeights( vector<AlphaReal>& weights );
+		inline virtual int normalizeWeights( vector<AlphaReal>& weights );
 		inline virtual AlphaReal getNormalizedScores( vector<AlphaReal>& scores, vector<AlphaReal>& normalizedScores, int iter );
 		
         AlphaReal genHeader( ofstream& out, int fnum );
@@ -291,7 +292,7 @@ namespace MultiBoost {
          * option -resume has been specified.
          * \date 21/12/2005
          */
-        int resumeProcess(const nor_utils::Args& args, InputData* pTestData);
+        virtual int resumeProcess(const nor_utils::Args& args, InputData* pTestData);
         
         vector<BaseLearner*>  _foundHypotheses; //!< The list of the hypotheses found.
         vector<AlphaReal>	  _sumAlphas;
@@ -383,7 +384,7 @@ namespace MultiBoost {
 					mddag->getStateVector( state, t, results );								
 					
 					
-					int action = mddag->_policy->getNextAction(stateData);				
+					int action = mddag->_policy->getNextAction(stateData,t);				
 					
 					if (action==0)
 					{
@@ -498,7 +499,7 @@ namespace MultiBoost {
 						vector<AlphaReal> distribution(_mddag->_actionNumber);
 						_mddag->getStateVector( state, t, margins );
 							
-						_policy->getExplorationDistribution(stateData, distribution);
+						_policy->getExplorationDistribution(stateData, distribution, t);
 							
 						if ( nor_utils::is_zero( distribution[0]-distribution[1]))
 							action = rand() % 2;
@@ -548,7 +549,7 @@ namespace MultiBoost {
 								action = rand() % _mddag->_actionNumber;
 							else {			
 								_mddag->getStateVector( state, t, margins );							
-								action = _policy->getExplorationNextAction( stateData );							
+								action = _policy->getExplorationNextAction( stateData, t );							
 							}
 						}
 						

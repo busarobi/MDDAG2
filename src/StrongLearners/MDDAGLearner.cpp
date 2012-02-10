@@ -369,13 +369,13 @@ namespace MultiBoost {
 			if (t==0)
 			{
 				// the first rollout is fast, thus we generate a lot of rollout instance
-				//rollout( pTrainingData, rolloutDataFile, 3 * _rollouts, _policy );
-				parallelRollout( pTrainingData, rolloutDataFile, _rollouts, _policy );
+				//rollout( args, pTrainingData, rolloutDataFile, 3 * _rollouts, _policy );
+				parallelRollout( args, pTrainingData, rolloutDataFile, _rollouts, _policy );
 			}
 			else 
 			{
-				//rollout( pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
-				parallelRollout( pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
+				//rollout(args, pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
+				parallelRollout( args, pTrainingData, rolloutDataFile, _rollouts, _policy, policyResultTrain );
 			}
 			
 			
@@ -437,7 +437,7 @@ namespace MultiBoost {
 	}	
 	
 	// -------------------------------------------------------------------------
-	void MDDAGLearner::rollout( InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy, PolicyResult* result )
+	void MDDAGLearner::rollout(const nor_utils::Args& args, InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy, PolicyResult* result )
 	{
 		const int numExamples = pData->getNumExamples();
 		const int numClasses = pData->getNumClasses();
@@ -551,14 +551,14 @@ namespace MultiBoost {
 							//							}
 							//							else {
 							//								getStateVector( state, t, margins[t] );							
-							//								action = policy->getNextAction( data );
+							//								action = policy->getNextAction( data, t );
 							//							}
 							/////////////							
 							//exploration
 							/////////////
 							
 							getStateVector( state, t, margins[t] );							
-							action = policy->getNextAction( data );
+							action = policy->getNextAction( data, t );
 							
 						}
 						
@@ -716,7 +716,7 @@ namespace MultiBoost {
 									action = rand() % _actionNumber;
 								else {			
 									getStateVector( state, t, margins[t] );							
-									action = policy->getExplorationNextAction( data );							
+									action = policy->getExplorationNextAction( data, t );							
 								}
 							}
 							
@@ -868,7 +868,7 @@ namespace MultiBoost {
 											action = rand() % _actionNumber;
 										} else {
 											getStateVector( state, t, margins[t] );							
-											action = policy->getExplorationNextAction( data );							
+											action = policy->getExplorationNextAction( data, t );							
 										}
 									}
 								}
@@ -963,7 +963,7 @@ namespace MultiBoost {
 	
 	// -------------------------------------------------------------------------
 	
-	void MDDAGLearner::parallelRollout(InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy, PolicyResult* result)
+	void MDDAGLearner::parallelRollout(const nor_utils::Args& args, InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy, PolicyResult* result, const int weakLearnerPostion)
 	{
 		const int numExamples = pData->getNumExamples();
 		const int numClasses = pData->getNumClasses();
@@ -1012,8 +1012,14 @@ namespace MultiBoost {
 			for (int ri = 0; ri < rsize; ++ri )
 			{
 				indices->at(ri) = rand() % numExamples;								
-				weakLearnerIndices->at(ri) = rand() % _shypIter;								
+				
 				mddagMargin[ri] = 1.0;				
+				if (weakLearnerPostion<0)
+				{
+					weakLearnerIndices->at(ri) = rand() % _shypIter;						
+				} else {
+					weakLearnerIndices->at(ri) = weakLearnerPostion;
+				}				
 			}			
 		} else if (_rolloutType==RL_BADSZATYMAZ) 
 		{
@@ -1028,15 +1034,27 @@ namespace MultiBoost {
 				{		
 					AlphaReal tmp;
 					indices->at(ri) = result->getRandomIndexOfInstance(tmp);
+					//indices->at(ri) = result->getRandomIndexOfNotCorrectlyClassifiedInstance(tmp);
 					mddagMargin[ri] = tmp;
 				}else {
 					indices->at(ri) = rand() % numExamples; 
 					mddagMargin[ri] = 1.0;
 				}
-				weakLearnerIndices->at(ri) = rand() % _shypIter;						
+				if (weakLearnerPostion<0)
+				{
+					weakLearnerIndices->at(ri) = rand() % _shypIter;						
+				} else {
+					weakLearnerIndices->at(ri) = weakLearnerPostion;
+				}											
 			}
-		}else if (_rolloutType==RL_FULL) 
+		} else if (_rolloutType==RL_FULL) 
 		{
+			if (weakLearnerPostion==-1)
+			{
+				cout << "Full rollout cannot be used with multiMDDAG" << endl;
+				exit(-1);
+			}
+				
 			indices = new vector<int>(numExamples*_shypIter);
 			weakLearnerIndices = new vector<int>(numExamples*_shypIter);
 			int tmpi = 0;
@@ -1074,7 +1092,7 @@ namespace MultiBoost {
 		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
 		{
 #ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
-			genHeader(rolloutStream, numClasses+5);
+			genHeader(rolloutStream, numClasses+2);
 #else
 			genHeader(rolloutStream, numClasses+4);
 #endif
@@ -1331,7 +1349,7 @@ namespace MultiBoost {
 				getStateVector( state, t, results );								
 				
 				
-				int action = _policy->getNextAction(stateData);				
+				int action = _policy->getNextAction(stateData, t);				
 				
 				if (action==0)
 				{
@@ -1430,6 +1448,8 @@ namespace MultiBoost {
 		out << "}" << endl << endl;
 		out << "@DATA" << endl;
 		out << flush;
+		
+		return 0.0;
 	}
 	
 	// -------------------------------------------------------------------------
@@ -1446,23 +1466,24 @@ namespace MultiBoost {
 			sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
 			
 #ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
-			state.resize(classNum+5);
-			//state[classNum+4] = sumOfPosterios; 
-			state[classNum+4] = iter; 
+			state.resize(classNum+2);
+			state[classNum+1] = sumOfPosterios; 
+			state[classNum] = iter; 
 #else			
 			state.resize(classNum+4);			
 #endif			
 			
 			for(int l=0; l<classNum; ++l )
+				//state[l] = margins[l];					
 				state[l] = posteriors[l];					
 			
-			
-			HaarSingleStumpLearner* bLearner = dynamic_cast<HaarSingleStumpLearner*> (_foundHypotheses[iter]);	
-			nor_utils::Rect& rect = bLearner->getSelectedConfig();
-			state[classNum] = rect.x;
-			state[classNum+1] = rect.y;
-			state[classNum+2] = rect.width; 
-			state[classNum+3] =  rect.height;
+//			
+//			HaarSingleStumpLearner* bLearner = dynamic_cast<HaarSingleStumpLearner*> (_foundHypotheses[iter]);	
+//			nor_utils::Rect& rect = bLearner->getSelectedConfig();
+//			state[classNum] = rect.x;
+//			state[classNum+1] = rect.y;
+//			state[classNum+2] = rect.width; 
+//			state[classNum+3] =  rect.height;
 		} else if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) == 0)
 		{
 			int classNum = margins.size();
@@ -1727,7 +1748,7 @@ namespace MultiBoost {
 		rolloutDataFile = _outDir + tmpFileNameChar;
 		
 		// because of the class map
-		rollout( pTestData, rolloutDataFile, 100 );
+		rollout( args, pTestData, rolloutDataFile, 100 );
 		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
 		
 		if (_verbose>0)
@@ -1789,7 +1810,7 @@ namespace MultiBoost {
 		rolloutDataFile = _outDir + tmpFileNameChar;
 		
 		// because of the class map
-		rollout( pTestData, rolloutDataFile, 100 );
+		rollout( args, pTestData, rolloutDataFile, 100 );
 		rolloutTrainingData = getRolloutData( args, rolloutDataFile );
 		
 		if (_verbose>0)

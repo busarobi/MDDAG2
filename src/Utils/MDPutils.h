@@ -62,15 +62,15 @@ namespace MultiBoost {
 		
 		
 		// abstract functions 
-		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations ) = 0;		
-		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution ) = 0;
-		virtual void getExplorationDistribution(InputData* state, vector<AlphaReal>& distribution )
+		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations, const int arrayInd = -1 ) = 0;		
+		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 ) = 0;
+		virtual void getExplorationDistribution(InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 )
 		{
-			getDistribution( state, distribution );
+			getDistribution( state, distribution, arrayInd );
 		}
 		
-		virtual int getNextAction( InputData* state );
-		virtual int getExplorationNextAction( InputData* state );
+		virtual int getNextAction( InputData* state, const int arrayInd = -1 );
+		virtual int getExplorationNextAction( InputData* state, const int arrayInd = -1 );
 		
 		// IO
 		virtual void save( const string fname, InputData* pData = NULL ) = 0;
@@ -94,9 +94,9 @@ namespace MultiBoost {
 	public:
 		RandomPolicy(const nor_utils::Args& args, const int actionNumber ) : GenericClassificationBasedPolicy(args, actionNumber, "random" ) {}
 		
-		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations ) {}
+		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations, const int arrayInd = 0 ) {}
 		
-		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution )
+		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 )
 		{
 			distribution.resize(_actionNum);
 			for (int i=0; i<_actionNum; ++i )
@@ -105,7 +105,7 @@ namespace MultiBoost {
 			}
 		}
 		
-		virtual int getNextAction( InputData* state )
+		virtual int getNextAction( InputData* state, const int arrayInd = -1 )
 		{
 			int action = rand() % _actionNum;
 			return action;
@@ -124,7 +124,7 @@ namespace MultiBoost {
 			ofile.close();
 		}
 		
-		virtual int load( const string fname, InputData* pData ) {} 
+		virtual int load( const string fname, InputData* pData ) { return -1; } 
 	};
 	//-------------------------------------------------------------------
 	//-------------------------------------------------------------------
@@ -133,16 +133,16 @@ namespace MultiBoost {
 	public:
 		FullEvalPolicy(const nor_utils::Args& args, const int actionNumber ) : GenericClassificationBasedPolicy(args, actionNumber, "fulleval" ) {}
 		
-		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations ) {}
+		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations, const int arrayInd = -1 ) { return 0.0; }
 		
-		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution )
+		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 )
 		{
 			distribution.resize(_actionNum);
 			fill(distribution.begin(), distribution.end(), 0.0 );
 			distribution[0]=1.0;
 		}
 		
-		virtual int getNextAction( InputData* state ) { return 0; }
+		virtual int getNextAction( InputData* state, const int arrayInd = -1 ) { return 0; }
 		
 		virtual void save( const string fname, InputData* pData = NULL ) {}
 		
@@ -160,8 +160,8 @@ namespace MultiBoost {
 			copy(baselearners.begin(), baselearners.end(), _weakhyp.begin() );
 		}
 		
-		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations );
-		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution );
+		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations, const int arrayInd = -1 );
+		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 );
 		
 		virtual void save( const string fname, InputData* pData = NULL );
 		virtual int  load( const string fname, InputData* pData );
@@ -187,9 +187,9 @@ namespace MultiBoost {
 			_coefficients.push_back( 1.0 );
 		}
 		
-		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations );
-		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution );
-		virtual void getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution );
+		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations, const int arrayInd = -1 );
+		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 );
+		virtual void getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 );
 		
 		virtual void save( const string fname, InputData* pData = NULL );
 		virtual int  load( const string fname, InputData* pData );
@@ -200,6 +200,56 @@ namespace MultiBoost {
 		AlphaReal					_alpha;
 		vector< AlphaReal >			_coefficients;
 	};
+	//-------------------------------------------------------------------
+	//-------------------------------------------------------------------	
+	class AdaBoostArrayOfPolicyArray : public GenericClassificationBasedPolicy
+	{		
+	public:
+		AdaBoostArrayOfPolicyArray(const nor_utils::Args& args, const int actionNumber ) : 
+		GenericClassificationBasedPolicy(args,actionNumber, "arrayofadaboostarray"), _policies( 0 ) 
+		{
+			if ( args.hasArgument("traintestmddag") ) 
+			{
+				args.getValue("traintestmddag", 4, _shypIter);
+			} else {
+				cout << "AdaBoostArrayOfPolicyArray must be called from MultiMDDAGLearner.h or MDDAGLEarner.h " << endl;
+				cout << endl;
+			}
+			
+			AlphaReal policyAlpha = 0.0;
+			
+			if ( args.hasArgument("policyalpha") )
+				args.getValue("policyalpha", 0, policyAlpha);
+							
+			_policies.resize(_shypIter);
+			
+			for (int i=0; i<_shypIter; ++i )
+			{
+				AdaBoostPolicyArray* currpolicy = new AdaBoostPolicyArray(args, policyAlpha, actionNumber );
+				_policies[i] = currpolicy;
+			}
+		}
+		
+		virtual AlphaReal trainpolicy( InputData* pTrainingData, const string baseLearnerName, const int numIterations, const int arrayInd = -1 )
+		{
+			if ( arrayInd == -1 ) return -1.0;
+			return _policies[arrayInd]->trainpolicy( pTrainingData, baseLearnerName, numIterations );
+		}
+			
+		virtual void getDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 );
+		virtual void getExplorationDistribution( InputData* state, vector<AlphaReal>& distribution, const int arrayInd = -1 );
+		virtual int getNextAction( InputData* state, const int arrayInd = -1 );
+		
+		virtual void save( const string fname, InputData* pData = NULL ) {}
+		virtual int  load( const string fname, InputData* pData ) { return 1; }
+		virtual int  getNumOfPolicies( int i ) { return _policies.size(); }
+		
+	protected:
+		vector<AdaBoostPolicyArray* > _policies;
+		AlphaReal					_alpha;		
+		int							_shypIter;
+	};
+	
 	//-------------------------------------------------------------------
 	//-------------------------------------------------------------------	
     class ClassificationBasedPolicyFactory
