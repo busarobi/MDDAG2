@@ -382,6 +382,7 @@ int main(int argc, const char* argv[])
 	args.declareArgument("succrewardtype", "Rewrd type (e01 or hammng)", 1, "<rward_type");
 	args.declareArgument("outtrainingerror", "Output training error", 0, "");
 	args.declareArgument("epsilon", "Exploration term", 1, "<epsilon>");
+	args.declareArgument("updateperc", "Number of component in the policy are updated", 1, "<perc>");
 	
 	// for VJ cascade
 	VJCascadeLearner::declareBaseArguments(args);

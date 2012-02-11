@@ -282,7 +282,7 @@ namespace MultiBoost {
          * Get the needed parameters (for the strong learner) from the argumens.
          * \param The arguments provided by the command line.
          */
-        void getArgs(const nor_utils::Args& args);
+        virtual void getArgs(const nor_utils::Args& args);
         
         
 		InputData* getRolloutData( const nor_utils::Args& args, const string fname );

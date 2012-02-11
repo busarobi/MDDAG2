@@ -44,12 +44,12 @@ namespace MultiBoost {
 	
 	class MultiMDDAGLearner : public MDDAGLearner {
     public:    
-		MultiMDDAGLearner() : MDDAGLearner() {}
+		MultiMDDAGLearner() : MDDAGLearner(), _randomNPercent(-1) {}
         /**
          * Get the needed parameters (for the strong learner) from the argumens.
          * \param The arguments provided by the command line.
          */
-        void getArgs(const nor_utils::Args& args);
+        virtual void getArgs(const nor_utils::Args& args);
 				
         /**
          * Resume the training using the features in _resumeShypFileName if the
@@ -66,7 +66,7 @@ namespace MultiBoost {
 		
 		virtual void parallelRollout(const nor_utils::Args& args, InputData* pData, const string fname, int rsize, GenericClassificationBasedPolicy* policy = NULL, PolicyResult* result = NULL, const int weakLearnerPostion = -1 );
     protected:		      		
-		
+		int _randomNPercent;
 		
 		friend class CalculateErrorRate;
 		friend class Rollout;
