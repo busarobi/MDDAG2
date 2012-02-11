@@ -198,7 +198,7 @@ namespace MultiBoost {
 		for ( int i=_policies.size()-1; 0<=i; --i )
 		{
 			if (_coefficients[i] < 0.01 ) break;
-			//if ((_policies.size()-i)>=5) break;
+			//if ((_policies.size()-i)>=10) break;
 			
 			_policies[i]->getDistribution( state, tmpDistribution );
 			for( int l=0; l < _actionNum; ++l )

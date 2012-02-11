@@ -1474,8 +1474,8 @@ namespace MultiBoost {
 #endif			
 			
 			for(int l=0; l<classNum; ++l )
-				//state[l] = margins[l];					
-				state[l] = posteriors[l];					
+				state[l] = margins[l];					
+				//state[l] = posteriors[l];					
 			
 //			
 //			HaarSingleStumpLearner* bLearner = dynamic_cast<HaarSingleStumpLearner*> (_foundHypotheses[iter]);	
@@ -1625,7 +1625,7 @@ namespace MultiBoost {
 						reward += exp(-labels[lIt->idx].y*margins[lIt->idx]);
 					}
 				}
-				
+				reward=-reward;
 				break;
 			default:
 				break;

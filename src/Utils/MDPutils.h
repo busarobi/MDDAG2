@@ -288,3 +288,4 @@ namespace MultiBoost {
 } // end of namespace MultiBoost
 
 #endif // __MDDAG_H
+
