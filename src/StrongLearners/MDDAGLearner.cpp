@@ -281,8 +281,8 @@ namespace MultiBoost {
 		
 		if (_verbose>0)
 			cout << "Iteration number of input model:\t" << _shypIter << endl;
-		
-		_outStream << trainError << "\t" << testError << endl << flush;
+		_outStream << setprecision (4);
+		_outStream << fixed << trainError << "\t" << testError << endl << flush;
 		_outStream << "Iter" << "\t" << "R.Err." << "\t" << "Err." << "\t" << "P.Err." << "\t" << "Evalcl" << "\t" << "Rew."; 
 		_outStream << "\t" << "Err." << "\t" << "P.Err." << "\t" << "Evalcl" << "\t" << "Rew." << "\t" << flush << endl;
 		
@@ -406,8 +406,8 @@ namespace MultiBoost {
 			parallelGetErrorRate(pTestData, tmpFileName.c_str(), policyResultTest);
 			
 			_outStream << (t+1) << "\t" << policyError; 
-			_outStream << "\t" << trainError << "\t" << policyResultTrain->errorRate << "\t" << policyResultTrain->numOfEvaluatedClassifier << "\t" << policyResultTrain->avgReward;
-			_outStream << "\t" << testError << "\t" << policyResultTest->errorRate << "\t" << policyResultTest->numOfEvaluatedClassifier << "\t" << policyResultTest->avgReward << "\t";
+			_outStream << fixed << "\t" << trainError << "\t" << policyResultTrain->errorRate << "\t" << policyResultTrain->numOfEvaluatedClassifier << "\t" << policyResultTrain->avgReward;
+			_outStream << fixed << "\t" << testError << "\t" << policyResultTest->errorRate << "\t" << policyResultTest->numOfEvaluatedClassifier << "\t" << policyResultTest->avgReward << "\t";
 			_outStream << endl << flush;
 			
 			

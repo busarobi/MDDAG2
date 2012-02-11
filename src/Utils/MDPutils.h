@@ -183,6 +183,7 @@ namespace MultiBoost {
 				GenericClassificationBasedPolicy(args,actionNumber, "adaboostarray"), _coefficients(0), _policies( 0 ), _alpha(alpha) 
 		{
 			GenericClassificationBasedPolicy* fullEvalPolicy = new FullEvalPolicy(args,actionNumber);
+			//GenericClassificationBasedPolicy* fullEvalPolicy = new RandomPolicy(args,actionNumber);
 			_policies.push_back( fullEvalPolicy );
 			_coefficients.push_back( 1.0 );
 		}

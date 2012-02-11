@@ -70,13 +70,13 @@ namespace MultiBoost {
 		// generate rollout
 		for( int si = 0; si < _shypIter; ++si )
 		{
-			stringstream ss("");
-			if (si>0)
-			{				
-				ss << fname << "_" << si;
-			} else {
-				ss << fname;
-			}
+			stringstream ss(fname);
+//			if (si>0)
+//			{				
+//				ss << fname << "_" << si;
+//			} else {
+//				ss << fname;
+//			}
 
 
 			MDDAGLearner::parallelRollout(args, pData, ss.str(), rsize, policy, result, si);
