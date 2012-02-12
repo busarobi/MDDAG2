@@ -127,6 +127,10 @@ namespace MultiBoost {
 		{			
 			if ((rollouts[si]==NULL) || (rollouts[si]->getNumExamples()<=2)) continue;				
 			policyError[si] = _policy->trainpolicy( rollouts[si], _baseLearnerName, _trainingIter, si );			
+			
+			if (_verbose)
+				cout << "--> Policy error: pos: " << si << "\t error:\t" << setprecision (4) << policyError[si] << endl;
+			
 			numOfUpdatedPolicy++;
 		}
 		
@@ -136,7 +140,7 @@ namespace MultiBoost {
 		//release rolouts
 		for( int si = 0; si < _shypIter; ++si )
 		{
-			delete rollouts[si];
+			if (rollouts[si]) delete rollouts[si];
 		}		
 	}		
 	// -------------------------------------------------------------------------	
