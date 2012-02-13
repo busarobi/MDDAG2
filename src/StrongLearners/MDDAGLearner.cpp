@@ -170,6 +170,8 @@ namespace MultiBoost {
 			_rewardtype = RW_EXPLOSS;
 		else if ( succesrewardtype.compare( "e01" ) == 0 )
 			_rewardtype = RW_ZEROONE;
+		else if ( succesrewardtype.compare( "mcexp" ) == 0 )
+			_rewardtype = RW_MCEXPLOSS;
 		else {
 			cerr << "Unknown success reward type" << endl;
 			exit(-1);
@@ -1494,15 +1496,22 @@ namespace MultiBoost {
 		} else if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) == 0)
 		{
 			int classNum = margins.size();
-			state.resize(classNum+3);
+			AlphaReal sumOfPosterios = 0.0;
+			vector<AlphaReal> posteriors( margins.size() );
+			
+			sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
+			
+#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
+			state.resize(classNum+1);
+			state[classNum] = sumOfPosterios; 
+			//state[classNum+1] = iter; 
+#else			
+			state.resize(classNum);			
+#endif			
+			
 			for(int l=0; l<classNum; ++l )
 				state[l] = margins[l];					
-			
-			
-			SingleStumpLearner* bLearner = dynamic_cast<SingleStumpLearner*> (_foundHypotheses[iter]);	
-			state[classNum] = bLearner->getThreshold();
-			state[classNum+1] = bLearner->getSelectedColumn();
-			state[classNum+2] = iter; 
+			//state[l] = posteriors[l];					
 		} else if ( _inBaseLearnerName.compare( "TreeLearner" ) == 0) // with SingleStumpLearner
 		{
 			int classNum = margins.size();
@@ -1651,10 +1660,25 @@ namespace MultiBoost {
 				} else {
 					for ( lIt = labels.begin(); lIt != labels.end(); ++lIt )
 					{
-						reward += exp(-labels[lIt->idx].y*margins[lIt->idx]);
+						reward += exp(-labels[lIt->idx].y*(margins[lIt->idx]/_sumAlphas[_shypIter]));
 					}
 				}
 				reward=-reward;
+				break;
+			case RW_MCEXPLOSS:
+				for ( l=0,lIt = labels.begin(); lIt != labels.end(); ++lIt, ++l )
+				{
+					// get the negative winner class
+					if ( lIt->y < 0 && margins[l] > maxNegClass )
+						maxNegClass = margins[l]/_sumAlphas[_shypIter];
+					
+					// get the positive winner class
+					if ( lIt->y > 0 && margins[l] < minPosClass )
+						minPosClass = margins[l]/_sumAlphas[_shypIter];
+				}
+				
+				reward = -exp( maxNegClass - minPosClass );
+				
 				break;
 			default:
 				break;
