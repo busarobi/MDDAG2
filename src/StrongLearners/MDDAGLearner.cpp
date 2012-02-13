@@ -259,7 +259,7 @@ namespace MultiBoost {
 		
 		AlphaReal trainError;
 		getClassError( pTrainingData, trainresults, trainError);
-		_outStream << "Training error: " << trainError << endl;
+//		_outStream << "Training error: " << trainError << endl;
 		if (_verbose > 0 )
 			cout << "Training error: " << trainError << endl;
 		
@@ -271,7 +271,7 @@ namespace MultiBoost {
 		
 		AlphaReal testError;
 		getClassError( pTestData, testresults, testError);
-		_outStream << "Test error: " << testError << endl;
+//		_outStream << "Test error: " << testError << endl;
 		if (_verbose > 0 )
 			cout << "Test error: " << testError << endl;
 		
@@ -282,7 +282,7 @@ namespace MultiBoost {
 		if (_verbose>0)
 			cout << "Iteration number of input model:\t" << _shypIter << endl;
 		_outStream << setprecision (4);
-		_outStream << fixed << trainError << "\t" << testError << endl << flush;
+//		_outStream << fixed << trainError << "\t" << testError << endl << flush;
 		_outStream << "Iter" << "\t" << "R.Err." << "\t" << "Err." << "\t" << "P.Err." << "\t" << "Evalcl" << "\t" << "Rew."; 
 		_outStream << "\t" << "Err." << "\t" << "P.Err." << "\t" << "Evalcl" << "\t" << "Rew." << "\t" << flush << endl;
 		
@@ -487,17 +487,23 @@ namespace MultiBoost {
 		}
 		
 		// gen header
-		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
-		{
-#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
-			genHeader(rolloutStream, numClasses+5);
-#else
-			genHeader(rolloutStream, numClasses+4);
-#endif
-		} if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
-		{
-			genHeader(rolloutStream, numClasses+3);
-		}						
+//		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
+//		{
+//#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
+//			genHeader(rolloutStream, numClasses+5);
+//#else
+//			genHeader(rolloutStream, numClasses+4);
+//#endif
+//		} else if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
+//		{
+//			genHeader(rolloutStream, numClasses+3);
+//		}						
+//		else if ( _inBaseLearnerName.compare( "TreeLearner" ) ==0 ) // with SingleDecisionStump
+//		{
+//			genHeader(rolloutStream, numClasses+3);
+//		}						
+		genHeader(rolloutStream, numClasses+1);
+		
 		
 		// full rollout
 		int currentExample = 0;
@@ -1089,18 +1095,19 @@ namespace MultiBoost {
 			exit(-1);
 		}
 		// gen header
-		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
-		{
-#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
-			genHeader(rolloutStream, numClasses+2);
-#else
-			genHeader(rolloutStream, numClasses+4);
-#endif
-		} if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
-		{
-			genHeader(rolloutStream, numClasses+3);
-		}						
-
+//		if ( _inBaseLearnerName.compare( "HaarSingleStumpLearner" ) ==0 )
+//		{
+//#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
+//			genHeader(rolloutStream, numClasses+2);
+//#else
+//			genHeader(rolloutStream, numClasses+4);
+//#endif
+//		} if ( _inBaseLearnerName.compare( "SingleStumpLearner" ) ==0 )
+//		{
+//			genHeader(rolloutStream, numClasses+3);
+//		}						
+		genHeader(rolloutStream, numClasses+1);
+		
 		int rolloutSize=0;
 		for (int i=0; i<rsize; ++i )
 		{
@@ -1466,9 +1473,9 @@ namespace MultiBoost {
 			sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
 			
 #ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
-			state.resize(classNum+2);
-			state[classNum+1] = sumOfPosterios; 
-			state[classNum] = iter; 
+			state.resize(classNum+1);
+			state[classNum] = sumOfPosterios; 
+			//state[classNum+1] = iter; 
 #else			
 			state.resize(classNum+4);			
 #endif			
@@ -1496,6 +1503,28 @@ namespace MultiBoost {
 			state[classNum] = bLearner->getThreshold();
 			state[classNum+1] = bLearner->getSelectedColumn();
 			state[classNum+2] = iter; 
+		} else if ( _inBaseLearnerName.compare( "TreeLearner" ) == 0) // with SingleStumpLearner
+		{
+			int classNum = margins.size();
+			AlphaReal sumOfPosterios = 0.0;
+			vector<AlphaReal> posteriors( margins.size() );
+			
+			sumOfPosterios = getNormalizedScores( margins, posteriors, iter );
+			
+#ifdef _ADD_SUMOFSCORES_TO_STATESPACE_			
+			state.resize(classNum+1);
+			state[classNum] = sumOfPosterios; 
+			//state[classNum+1] = iter; 
+#else			
+			state.resize(classNum);			
+#endif			
+			
+			for(int l=0; l<classNum; ++l )
+				state[l] = margins[l];					
+			//state[l] = posteriors[l];					
+		} else {
+			cout << "State definition is not implemented!" << endl;
+			exit(-1);
 		}
 		
 		
